@@ -392,8 +392,8 @@ export function ImportAiPage() {
             {preview.totalMinutes}分钟
           </p>
           <p>
-            将新增 {preview.added} 项 · 重复跳过 {preview.duplicates.length} 项 · 无任务日期{' '}
-            {preview.gaps.length} 天
+            将新增 {preview.added} 项 · 恢复 {preview.restored ?? 0} 项 · 重复跳过{' '}
+            {preview.duplicates.length} 项 · 无任务日期 {preview.gaps.length} 天
           </p>
           <p>
             {preview.plan.subjects

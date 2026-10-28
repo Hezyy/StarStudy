@@ -27,7 +27,8 @@ export function PlanHistory() {
         : [];
   const last = revisions.find(
     (r) =>
-      ['schedule', 'external'].includes(r.kind ?? '') &&
+      (['schedule', 'external'].includes(r.kind ?? '') ||
+        (r.kind === 'manual' && r.reason.startsWith('清空未开始计划'))) &&
       !revisions.some((v) => v.kind === 'undo' && v.restoresRevisionId === r.revisionId),
   );
   return (

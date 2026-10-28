@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import ExcelJS from 'exceljs';
 import type { StarDatabase } from '@/db';
 import { testDatabase, sampleTask } from './helpers';
+import { createPlanCleanup } from '@/services/plan-cleanup';
+import { applyProposal, versionProposal } from '@/services/plans';
+import { entity } from '@/lib/utils';
 import {
   autoMapping,
   excelDate,
@@ -44,6 +47,60 @@ describe('Excel 安全导入', () => {
     expect(await commitImport(rows, database)).toEqual({ success: 0, failed: 0, skipped: 2 });
     const tasks = await database.tasks.toArray();
     expect(tasks.find((t) => t.title === '复习极限')?.rawImport?.['6:原始额外列']).toBe('保留我');
+  });
+  it('清理未开始计划后可以重新导入，连续再导入仍跳过且同日不同任务可并存', async () => {
+    const subjects = await database.subjects.toArray();
+    const sameDay = {
+      ...sheet,
+      rows: [sheet.rows[0], ['2026-11-01', '数学一', '复习导数', '30', '未完成', '第二任务']],
+    };
+    const initial = previewSheet(sameDay, autoMapping(sameDay.headers), subjects, []);
+    expect(await commitImport(initial, database)).toEqual({ success: 2, skipped: 0, failed: 0 });
+    const initialIds = (await database.tasks.toArray()).map((task) => task.id).sort();
+    const cleanup = await createPlanCleanup({}, database);
+    const cleanupRevision = await applyProposal(cleanup.proposal, true, database);
+    const rows = previewSheet(
+      sameDay,
+      autoMapping(sameDay.headers),
+      subjects,
+      await database.tasks.toArray(),
+    );
+    expect(rows.every((row) => !row.duplicate)).toBe(true);
+    expect(await commitImport(rows, database)).toEqual({ success: 2, skipped: 0, failed: 0 });
+    expect(await commitImport(rows, database)).toEqual({ success: 0, skipped: 2, failed: 0 });
+    expect((await database.tasks.toArray()).filter((task) => !task.deletedAt)).toHaveLength(2);
+    expect(await database.tasks.count()).toBe(2);
+    expect((await database.tasks.toArray()).map((task) => task.id).sort()).toEqual(initialIds);
+    const undoCleanup = await versionProposal(cleanupRevision.revisionId, 'undo', database);
+    expect(undoCleanup.changes).toHaveLength(0);
+    expect(undoCleanup.conflicts).toHaveLength(0); // The identical plan is already restored.
+  });
+  it('带真实学习记录的归档任务仍参与去重，不能重复生成学习历史', async () => {
+    const subjects = await database.subjects.toArray();
+    const one = { ...sheet, rows: [sheet.rows[0]] };
+    const initial = previewSheet(one, autoMapping(one.headers), subjects, []);
+    await commitImport(initial, database);
+    const task = (await database.tasks.toArray())[0];
+    const session = {
+      ...entity(),
+      taskId: task.id,
+      state: 'ended' as const,
+      segments: [{ startedAt: 1000, endedAt: 61000 }],
+    };
+    await database.sessions.add(session);
+    await database.tasks.update(task.id, { deletedAt: new Date().toISOString() });
+    const rows = previewSheet(
+      one,
+      autoMapping(one.headers),
+      subjects,
+      await database.tasks.toArray(),
+      new Set(),
+      [session],
+    );
+    expect(rows[0].duplicate).toBe(true);
+    expect(await commitImport(initial, database)).toEqual({ success: 0, skipped: 1, failed: 0 });
+    expect(await database.sessions.toArray()).toEqual([session]);
+    expect(await database.tasks.count()).toBe(1);
   });
   it('未知列允许用户映射，错误行不破坏原数据', async () => {
     await sampleTask(database);

@@ -16,7 +16,7 @@ export interface PlanProposal {
   id: string;
   generatedAt: string;
   reason: string;
-  kind: 'schedule' | 'undo' | 'restore' | 'external';
+  kind: 'manual' | 'schedule' | 'undo' | 'restore' | 'external';
   stateToken: string;
   changes: TaskChange[];
   unassigned: Unscheduled[];

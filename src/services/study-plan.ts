@@ -1,5 +1,6 @@
 import { studyPlanSchema, type StudyPlan, type ImportMode } from '@/schemas/study-plan';
 import { budgetFor, defaults, taskFingerprint } from '@/lib/utils';
+import { taskProtectionReason } from '@/lib/task-protection';
 import type { Backup } from './backup';
 import type { Preferences } from '@/types';
 export function parsePlanText(input: string): StudyPlan {
@@ -40,6 +41,7 @@ export interface PlanPreview {
   duplicates: string[];
   changes: string[];
   added: number;
+  restored: number;
   totalMinutes: number;
   gaps: string[];
   after: Backup;
@@ -164,7 +166,6 @@ export function previewStudyPlan(
         verification: 'pending',
       });
   }
-  const sessionIds = new Set(d.sessions.map((s) => s.taskId));
   if (mode === 'replace')
     for (const t of d.tasks)
       if (
@@ -173,20 +174,39 @@ export function previewStudyPlan(
         !t.deletedAt &&
         t.status !== 'completed'
       ) {
-        if (sessionIds.has(t.id)) warnings.push(`保留已有学习记录的任务：${t.title}`);
+        const protection = taskProtectionReason(t, d.sessions, d.taskResources);
+        if (protection) warnings.push(`保留已有学习记录或状态的任务：${t.title}（${protection}）`);
         else if (!plan.tasks.some((x) => getId('tasks', x.externalId) === t.id)) {
           t.deletedAt = stamp;
           changes.push(`取消（可通过版本恢复）：${t.date} ${t.title}`);
         }
       }
-  let added = 0;
-  const fingerprints = new Set(d.tasks.filter((t) => !t.deletedAt).map(taskFingerprint));
+  let added = 0,
+    restored = 0;
+  const restoredIds = new Set<string>();
+  const fingerprints = new Set(
+    d.tasks
+      .filter((t) => !t.deletedAt || taskProtectionReason(t, d.sessions, d.taskResources))
+      .map(taskFingerprint),
+  );
+  // An archived task may retain a user's notes while accepting a new proposed plan definition.
+  // Keep the import-note baseline separate so repeating the exact file never overwrites those notes or reports a false conflict.
+  const importedNotesKey = '_starStudyPlanV1ImportedNotes';
   for (const [index, t] of plan.tasks.entries()) {
     const label = `第${index + 1}个任务「${t.title}」`;
     if (t.date < plan.startDate || t.date > plan.endDate) errors.push(`${label}超出计划范围`);
     if (t.date > plan.examTarget.examDate) errors.push(`${label}晚于初试日期`);
-    const id = getId('tasks', t.externalId),
+    const sourceKey = key('tasks', t.externalId);
+    const sourceMatches = mapping[sourceKey]
+      ? []
+      : d.tasks.filter((existing) => existing.sourceKey === sourceKey);
+    if (sourceMatches.length > 1) {
+      errors.push(`${label}的来源标识对应多条历史任务，请先核对原任务，不能自动恢复`);
+      continue;
+    }
+    const id = mapping[sourceKey] ?? sourceMatches[0]?.id ?? getId('tasks', t.externalId),
       subjectId = ref('subjects', t.subjectId, label);
+    mapping[sourceKey] = id;
     const knowledgePointIds = t.knowledgePointIds.map((x) => ref('knowledgePoints', x, label));
     const resourceIds = t.resourceIds.map((x) => ref('resources', x, label));
     if (
@@ -214,12 +234,57 @@ export function previewStudyPlan(
       notes: t.notes,
       knowledgePointIds,
       priority: t.priority,
-      sourceKey: key('tasks', t.externalId),
+      sourceKey,
       originDate: t.date,
       taskType: t.taskType,
     };
     const old = d.tasks.find((x) => x.id === id),
       fingerprint = taskFingerprint(task);
+    if (old?.deletedAt) {
+      const protection = taskProtectionReason(old, d.sessions, d.taskResources);
+      if (protection) {
+        errors.push(
+          `${label}对应的归档任务包含学习记录或保留状态（${protection}），不能自动恢复或覆盖。请先核对原任务。`,
+        );
+        duplicates.push(`${t.date} ${t.title}`);
+        continue;
+      }
+      if (fingerprints.has(fingerprint)) {
+        duplicates.push(`${t.date} ${t.title}`);
+        warnings.push(`${label}已有相同的活跃任务或学习历史，本次不恢复重复内容`);
+        continue;
+      }
+      const links = d.taskResources.filter((link) => link.taskId === old.id);
+      const matching = new Set(links.map((link) => link.resourceId));
+      // Only unwatched associations can reach this branch. Existing links keep their UUIDs when still included.
+      d.taskResources = d.taskResources.filter(
+        (link) => link.taskId !== old.id || resourceIds.includes(link.resourceId),
+      );
+      for (const resourceId of new Set(resourceIds))
+        if (!matching.has(resourceId))
+          d.taskResources.push({ ...entity(), taskId: old.id, resourceId });
+      const recovered = {
+        ...old,
+        ...task,
+        createdAt: old.createdAt,
+        notes: old.notes || task.notes,
+        rawImport: { ...old.rawImport, [importedNotesKey]: t.notes },
+        originDate: old.originDate ?? old.date,
+        deletedAt: undefined,
+        unscheduled: false,
+        ...(old.plannedMinutes === undefined ? {} : { plannedMinutes: task.estimatedMinutes }),
+      };
+      d.tasks[d.tasks.findIndex((existing) => existing.id === old.id)] = recovered;
+      fingerprints.add(fingerprint);
+      restored++;
+      restoredIds.add(old.id);
+      changes.push(
+        `恢复：${old.title} → ${t.title} · ${old.date} → ${t.date} · ${old.estimatedMinutes} → ${t.estimatedMinutes}分钟（保留原笔记与历史）`,
+      );
+      if (old.notes && old.notes !== t.notes)
+        warnings.push(`${label}保留原学习笔记；本次文件备注未覆盖原笔记，可在任务详情自行补充`);
+      continue;
+    }
     if (old) {
       const fields = [
         'date',
@@ -237,7 +302,11 @@ export function previewStudyPlan(
         .sort();
       const legacyDescription = old.description === undefined && old.chapter === t.description;
       if (
-        fields.some((k) => !(k === 'chapter' && legacyDescription) && old[k] !== task[k]) ||
+        fields.some(
+          (k) =>
+            !(k === 'chapter' && legacyDescription) &&
+            (k === 'notes' ? (old.rawImport?.[importedNotesKey] ?? old.notes) : old[k]) !== task[k],
+        ) ||
         (old.description ?? (legacyDescription ? old.chapter : '')) !== t.description ||
         JSON.stringify([...old.knowledgePointIds].sort()) !==
           JSON.stringify([...knowledgePointIds].sort()) ||
@@ -258,6 +327,23 @@ export function previewStudyPlan(
     changes.push(`新增：${t.date} ${t.title} · ${t.estimatedMinutes}分钟`);
     for (const resourceId of resourceIds)
       d.taskResources.push({ ...entity(), taskId: id, resourceId });
+  }
+  for (const task of d.tasks) {
+    if (task.deletedAt || task.unscheduled || ['completed', 'skipped'].includes(task.status))
+      continue;
+    if (restoredIds.has(task.id) && task.dueDate && task.date > task.dueDate)
+      errors.push(`恢复任务「${task.title}」的日期晚于原截止日期，请先核对安排`);
+    for (const dependencyId of task.dependencyTaskIds ?? []) {
+      if (!restoredIds.has(task.id) && !restoredIds.has(dependencyId)) continue;
+      const dependency = d.tasks.find((candidate) => candidate.id === dependencyId);
+      if (
+        !dependency ||
+        dependency.deletedAt ||
+        dependency.unscheduled ||
+        (dependency.status !== 'completed' && dependency.date >= task.date)
+      )
+        errors.push(`恢复任务会破坏「${task.title}」的前置任务顺序，请一并恢复或重新安排依赖任务`);
+    }
   }
   const visiting = new Set<string>(),
     done = new Set<string>();
@@ -333,6 +419,7 @@ export function previewStudyPlan(
     duplicates,
     changes,
     added,
+    restored,
     totalMinutes: plan.tasks.reduce((s, t) => s + t.estimatedMinutes, 0),
     gaps,
     after,

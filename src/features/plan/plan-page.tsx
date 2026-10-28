@@ -1,7 +1,8 @@
 'use client';
 import { useViewState } from '@/lib/interaction';
 import { plannedMinutes } from '@/services/analytics';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from '@/components/ui/app-link';
 import {
   addDays,
@@ -23,6 +24,7 @@ import {
   MoveRight,
   Scissors,
   CalendarDays,
+  Archive,
 } from 'lucide-react';
 import { useApp } from '@/components/provider';
 import { Button } from '@/components/ui/button';
@@ -33,9 +35,45 @@ import { budgetFor, statusLabels, today, validDate } from '@/lib/utils';
 import { shiftTasks, splitTask } from '@/services/tasks';
 import type { StudyTask } from '@/types';
 import { PlanHistory } from '@/features/planner/history';
+import { CleanupDialog } from './cleanup-dialog';
+import { db } from '@/db';
+import { versionProposal } from '@/services/plans';
+import { ProposalPreview } from '@/features/planner/proposal-preview';
+import type { PlanProposal } from '@/scheduler/types';
 type View = 'day' | 'week' | 'month' | 'list';
 export function PlanPage() {
   const app = useApp();
+  const router = useRouter();
+  const database = db;
+  const mounted = useRef(true);
+  const { run } = app;
+  const [cleanup, setCleanup] = useState(false);
+  const [undoProposal, setUndoProposal] = useState<PlanProposal | null>(null);
+  const [cleanupRevision, setCleanupRevision] = useState<string | null>(null);
+  const undoCleanup = useCallback(
+    async (revisionId: string) => {
+      if (!mounted.current) {
+        router.push(`/plan/?cleanupUndo=${encodeURIComponent(revisionId)}`);
+        return;
+      }
+      await run(async () => {
+        const proposal = await versionProposal(revisionId, 'undo', database);
+        if (mounted.current) setUndoProposal(proposal);
+        else router.push(`/plan/?cleanupUndo=${encodeURIComponent(revisionId)}`);
+      });
+    },
+    [database, run, router],
+  );
+  useEffect(() => {
+    mounted.current = true;
+    const params = new URLSearchParams(location.search);
+    if (params.get('cleanup') === '1') setCleanup(true);
+    const revisionId = params.get('cleanupUndo');
+    if (revisionId) void undoCleanup(revisionId);
+    return () => {
+      mounted.current = false;
+    };
+  }, [undoCleanup]);
   const [listPage, setListPage] = useState(0);
   const [dragTarget, setDragTarget] = useState<string | null>(null),
     [dragging, setDragging] = useState<string | null>(null);
@@ -57,7 +95,7 @@ export function PlanPage() {
       setBacklog(true);
       setView('list');
     }
-  }, [setBacklog,setView]);
+  }, [setBacklog, setView]);
   useEffect(() => setListPage(0), [subject, status, backlog]);
   const tasks = useMemo(
     () =>
@@ -128,6 +166,10 @@ export function PlanPage() {
           <p>按真实时间安排任务，让未完成的计划有处可循。</p>
         </div>
         <div className="heading-buttons">
+          <Button variant="secondary" onClick={() => setCleanup(true)}>
+            <Archive size={16} />
+            清空计划
+          </Button>
           <Button asChild variant="secondary">
             <Link href="/planner/">动态排期</Link>
           </Button>
@@ -143,6 +185,14 @@ export function PlanPage() {
           </Button>
         </div>
       </div>
+      {cleanupRevision && (
+        <div className="selection-toolbar" role="status">
+          <span>本次清空已保存版本，历史学习记录仍保留。</span>
+          <Button variant="ghost" size="sm" onClick={() => undoCleanup(cleanupRevision)}>
+            撤销本次清空
+          </Button>
+        </div>
+      )}
       <div className="plan-toolbar panel">
         <div className="calendar-controls">
           <Button variant="ghost" size="icon" aria-label="上一周期" onClick={() => changeDate(-1)}>
@@ -522,6 +572,29 @@ export function PlanPage() {
         <Modal title="计划变更记录" onClose={() => setHistory(false)} wide>
           <PlanHistory />
         </Modal>
+      )}
+      {cleanup && (
+        <CleanupDialog
+          initialSubjectId={subject === 'all' ? undefined : subject}
+          onClose={() => setCleanup(false)}
+          onApplied={(revision, count) => {
+            setCleanup(false);
+            setSelected([]);
+            setCleanupRevision(revision.revisionId);
+            app.notify(`已清空 ${count} 项未开始任务，学习记录已保留`, false, {
+              label: '撤销清空',
+              onClick: () => undoCleanup(revision.revisionId),
+            });
+          }}
+        />
+      )}
+      {undoProposal && (
+        <ProposalPreview
+          proposal={undoProposal}
+          onCancel={() => setUndoProposal(null)}
+          onModify={() => setUndoProposal(null)}
+          onApplied={() => setCleanupRevision(null)}
+        />
       )}
     </>
   );

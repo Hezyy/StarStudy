@@ -129,6 +129,20 @@ export function validateProposal(proposal: PlanProposal, data: CoreData) {
       throw new Error('计划日期须在今天至初试日期之间');
     after.set(c.id, c.after);
   }
+  const revived = new Set(
+    proposal.changes
+      .filter((change) => current.get(change.id)?.deletedAt && !change.after.deletedAt)
+      .map((change) => change.id),
+  );
+  const finalKeys = new Map<string, string>();
+  for (const task of after.values()) {
+    if (task.deletedAt) continue;
+    const key = taskFingerprint(task);
+    const existingId = finalKeys.get(key);
+    if (existingId && (revived.has(task.id) || revived.has(existingId)))
+      throw new Error('恢复的任务与当前计划重复，请先处理重新导入的任务');
+    finalKeys.set(key, task.id);
+  }
   const live = [...after.values()].filter(
     (t) => !t.deletedAt && !t.unscheduled && t.status !== 'skipped',
   );
@@ -334,6 +348,29 @@ export async function versionProposal(
         reason: '恢复历史计划字段',
         type: wanted.deletedAt ? 'archive' : 'update',
       });
+  }
+  // An import after cleanup may already contain the same plan under new UUIDs.
+  // Undo must show a conflict rather than bringing a second visible copy back.
+  for (const change of [...proposal.changes]) {
+    const current = data.tasks.find((task) => task.id === change.id);
+    if (!current?.deletedAt || change.after.deletedAt) continue;
+    const final = new Map(data.tasks.map((task) => [task.id, task]));
+    for (const item of proposal.changes) final.set(item.id, item.after);
+    if (
+      [...final.values()].some(
+        (task) =>
+          task.id !== change.id &&
+          !task.deletedAt &&
+          taskFingerprint(task) === taskFingerprint(change.after),
+      )
+    ) {
+      proposal.changes = proposal.changes.filter((item) => item.id !== change.id);
+      proposal.conflicts!.push({
+        taskId: change.id,
+        title: change.after.title,
+        reason: '同一任务已重新导入，保留当前任务，避免恢复为重复计划',
+      });
+    }
   }
   let checking = true;
   while (checking) {

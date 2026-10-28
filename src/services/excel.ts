@@ -2,7 +2,8 @@ import { format, addDays } from 'date-fns';
 import { db } from '@/db';
 import { entity, taskFingerprint, validDate } from '@/lib/utils';
 import { taskSchema, type TaskInput } from '@/schemas';
-import type { Subject, StudyTask, TaskStatus } from '@/types';
+import type { Subject, StudyTask, TaskStatus, StudySession, TaskResource } from '@/types';
+import { taskProtectionReason } from '@/lib/task-protection';
 import { record } from './tasks';
 export const importFields = [
   'date',
@@ -135,9 +136,14 @@ export function previewSheet(
   subjects: Subject[],
   existing: StudyTask[],
   seen = new Set<string>(),
+  sessions: StudySession[] = [],
+  taskResources: TaskResource[] = [],
 ): ImportRow[] {
-  const keys = new Set(existing.map(taskFingerprint)),
-    sources = new Set(existing.map((t) => t.sourceKey));
+  const retained = existing.filter(
+    (task) => !task.deletedAt || taskProtectionReason(task, sessions, taskResources),
+  );
+  const keys = new Set(retained.map(taskFingerprint)),
+    sources = new Set(retained.map((t) => t.sourceKey));
   return sheet.rows.map((cells, i) => {
     const raw = Object.fromEntries(sheet.headers.map((h, j) => [`${j + 1}:${h}`, cells[j] ?? '']));
     const result: ImportRow = {
@@ -239,13 +245,25 @@ async function readExcelJsWorkbook(file: ArrayBuffer): Promise<ExcelSheet[]> {
 export async function commitImport(rows: ImportRow[], database = db) {
   return database.transaction(
     'rw',
-    [database.tasks, database.subjects, database.revisions],
+    [
+      database.tasks,
+      database.subjects,
+      database.revisions,
+      database.sessions,
+      database.taskResources,
+    ],
     async () => {
-      const existing = await database.tasks.toArray(),
+      const sessions = await database.sessions.toArray();
+      const taskResources = await database.taskResources.toArray();
+      const all = await database.tasks.toArray();
+      const existing = all.filter(
+          (task) => !task.deletedAt || taskProtectionReason(task, sessions, taskResources),
+        ),
         keys = new Set(existing.map(taskFingerprint)),
         sources = new Set(existing.map((t) => t.sourceKey));
       const subjects = new Set((await database.subjects.toArray()).map((s) => s.id));
       const added: StudyTask[] = [];
+      const restoredBefore: StudyTask[] = [];
       let success = 0,
         skipped = 0,
         failed = 0;
@@ -261,22 +279,42 @@ export async function commitImport(rows: ImportRow[], database = db) {
           skipped++;
           continue;
         }
+        const archived = all.find(
+          (candidate) =>
+            candidate.deletedAt &&
+            !taskProtectionReason(candidate, sessions, taskResources) &&
+            ((row.sourceKey && candidate.sourceKey === row.sourceKey) ||
+              taskFingerprint(candidate) === key),
+        );
         const imported: StudyTask = {
-          ...entity(),
+          ...(archived ?? entity()),
           ...task,
+          notes: archived?.notes || task.notes,
+          deletedAt: undefined,
+          plannedMinutes: undefined,
+          unscheduled: false,
+          dependencyTaskIds: task.dependencyTaskIds ?? [],
+          scheduleKey: undefined,
+          updatedAt: new Date().toISOString(),
           sourceKey: row.sourceKey,
           rawImport: row.raw,
-          originDate: task.date,
+          originDate: archived?.originDate ?? task.date,
           completedAt: task.status === 'completed' ? new Date().toISOString() : undefined,
         };
+        if (archived) restoredBefore.push(archived);
         added.push(imported);
         keys.add(key);
         if (row.sourceKey) sources.add(row.sourceKey);
         success++;
       }
       if (added.length) {
-        await database.tasks.bulkAdd(added);
-        await record(database, [], added, 'Excel导入（用户预览确认）');
+        await database.tasks.bulkPut(added);
+        await record(
+          database,
+          restoredBefore,
+          added,
+          `Excel导入（用户预览确认${restoredBefore.length ? `，恢复${restoredBefore.length}项归档任务` : ''}）`,
+        );
       }
       return { success, skipped, failed };
     },

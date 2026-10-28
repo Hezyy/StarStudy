@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { useApp } from '@/components/provider';
 import { Button } from '@/components/ui/button';
+import Link from '@/components/ui/app-link';
+import { db } from '@/db';
 import {
   autoMapping,
   commitImport,
@@ -22,6 +24,7 @@ import {
   type WideWeights,
 } from '@/services/wide-excel';
 export function ImportPanel() {
+  const database = db;
   const app = useApp();
   const platform = usePlatform();
   const [weights, setWeights] = useState<WideWeights>(defaultWideWeights);
@@ -46,14 +49,49 @@ export function ImportPanel() {
     return sheets.flatMap((s, i) =>
       selected[i]
         ? isWideSheet(s)
-          ? previewWideSheet(s, app.subjects, app.tasks, weights, seen)
-          : previewSheet(s, mappings[i], app.subjects, app.tasks, seen)
+          ? previewWideSheet(
+              s,
+              app.subjects,
+              app.tasks,
+              weights,
+              seen,
+              app.sessions,
+              app.taskResources,
+            )
+          : previewSheet(
+              s,
+              mappings[i],
+              app.subjects,
+              app.tasks,
+              seen,
+              app.sessions,
+              app.taskResources,
+            )
         : [],
     );
-  }, [sheets, mappings, selected, app.subjects, app.tasks, weights]);
+  }, [
+    sheets,
+    mappings,
+    selected,
+    app.subjects,
+    app.tasks,
+    weights,
+    app.sessions,
+    app.taskResources,
+  ]);
   const valid = rows.filter((r) => r.task && !r.error && !r.duplicate).length,
     errors = rows.filter((r) => r.error).length,
     duplicates = rows.filter((r) => r.duplicate).length;
+  const overlappingDates = useMemo(() => {
+    const incoming = new Set(
+      rows.filter((row) => row.task && !row.error && !row.duplicate).map((row) => row.task!.date),
+    );
+    const counts = new Map<string, number>();
+    for (const task of app.tasks)
+      if (!task.deletedAt && incoming.has(task.date))
+        counts.set(task.date, (counts.get(task.date) ?? 0) + 1);
+    return [...counts].sort(([a], [b]) => a.localeCompare(b));
+  }, [rows, app.tasks]);
   return (
     <section className="panel settings-section">
       <div className="section-heading">
@@ -65,6 +103,9 @@ export function ImportPanel() {
       </div>
       <p className="hint">
         支持多表、列映射、预览和去重。已兼容426天宽表：一行多科目可拆成独立任务，课程与题量仍以原始内容为准并标记待核实。
+      </p>
+      <p className="hint">
+        Excel采用追加导入：同一任务会自动跳过，同一天的不同任务会保留。导入不会覆盖或清空原计划；更换整份计划时，可先到学习计划中预览清空未开始的旧任务。
       </p>
       <label className="upload-zone">
         <Upload size={24} />
@@ -202,6 +243,26 @@ export function ImportPanel() {
               校验失败 <strong>{errors}</strong>
             </span>
           </div>
+          {overlappingDates.length > 0 && (
+            <section className="warning-box" aria-label="导入日期重叠提醒">
+              <h3>新任务日期与已有计划重叠</h3>
+              <p>
+                以下 {overlappingDates.length} 天已有{' '}
+                {overlappingDates.reduce((sum, [, count]) => sum + count, 0)}{' '}
+                项任务。确认导入会追加不同任务，同日旧任务不会自动消失。
+              </p>
+              <p>
+                {overlappingDates
+                  .slice(0, 10)
+                  .map(([date, count]) => `${date}：旧任务 ${count} 项`)
+                  .join('；')}
+                {overlappingDates.length > 10 ? '；更多日期请查看日历' : ''}
+              </p>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href="/plan/?cleanup=1">先预览清空旧计划</Link>
+              </Button>
+            </section>
+          )}
           <div className="table-scroll">
             <table>
               <caption>导入预览（显示前 200 行，共 {rows.length} 行）</caption>
@@ -258,7 +319,7 @@ export function ImportPanel() {
               onClick={async () => {
                 setBusy(true);
                 await app.run(
-                  async () => setResult(await commitImport(rows)),
+                  async () => setResult(await commitImport(rows, database)),
                   `导入已处理，请查看结果`,
                 );
                 setBusy(false);

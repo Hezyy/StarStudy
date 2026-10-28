@@ -334,3 +334,56 @@ test('切换账户隔离筛选上下文，重新登录本人账户恢复原筛�
   await page.goto('/resources/');
   await expect(page.getByLabel('搜索资料', { exact: true })).toHaveValue('仅属于第一个账户的筛选');
 });
+
+test('账户清空计划会同步归档，并保留完成与真实计时记录', async ({ page, context, request }) => {
+  await newAccount(page, request);
+  await create(page, '账户待清空任务');
+  await create(page, '账户完成记录');
+  await create(page, '账户计时记录');
+  await page.getByRole('button', { name: '完成 账户完成记录', exact: true }).click();
+  const timed = page
+    .getByTestId('task-card')
+    .filter({ has: page.getByRole('heading', { name: '账户计时记录', exact: true }) });
+  await timed.getByRole('button', { name: '开始学习', exact: true }).click();
+  await page.getByRole('button', { name: '结束计时', exact: true }).click();
+  await expect
+    .poll(async () => {
+      const data = await (await context.request.get('/api/platform/data')).json();
+      return {
+        tasks: data.backup.data.tasks.length,
+        sessions: data.backup.data.sessions.filter(
+          (session: { state: string }) => session.state === 'ended',
+        ).length,
+      };
+    })
+    .toEqual({ tasks: 3, sessions: 1 });
+  const before = await (await context.request.get('/api/platform/data')).json();
+  await page.goto('/plan/');
+  await page.getByRole('button', { name: '列表', exact: true }).click();
+  await page.getByRole('button', { name: '清空计划', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('status')).toContainText(
+    '可清空 1 项 · 受保护 2 项',
+  );
+  await page.getByRole('button', { name: '确认清空 1 项', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect
+    .poll(async () => {
+      const data = await (await context.request.get('/api/platform/data')).json();
+      return data.backup.data.tasks.filter((task: { deletedAt?: string }) => !task.deletedAt)
+        .length;
+    })
+    .toBe(2);
+  const after = await (await context.request.get('/api/platform/data')).json();
+  expect(after.backup.data.sessions).toEqual(before.backup.data.sessions);
+  expect(
+    after.backup.data.tasks.find((task: { title: string }) => task.title === '账户完成记录').status,
+  ).toBe('completed');
+  expect(
+    after.backup.data.tasks.find((task: { title: string }) => task.title === '账户待清空任务')
+      .deletedAt,
+  ).toBeTruthy();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: '账户待清空任务', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: '账户完成记录', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '账户计时记录', exact: true })).toBeVisible();
+});

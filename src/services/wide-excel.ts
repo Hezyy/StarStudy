@@ -1,5 +1,5 @@
 import { autoMapping, previewSheet, type ExcelSheet, type ImportRow } from './excel';
-import type { Subject, StudyTask } from '@/types';
+import type { Subject, StudyTask, StudySession, TaskResource } from '@/types';
 export const isWideSheet = (s: ExcelSheet) =>
   s.headers.some((h) => h.includes('数学网课')) && s.headers.some((h) => h.includes('408网课'));
 export interface WideWeights {
@@ -15,6 +15,8 @@ export function previewWideSheet(
   existing: StudyTask[],
   weights = defaultWideWeights,
   seen = new Set<string>(),
+  sessions: StudySession[] = [],
+  taskResources: TaskResource[] = [],
 ): ImportRow[] {
   const find = (pattern: RegExp) => sheet.headers.findIndex((h) => pattern.test(h));
   const date = find(/^日期$/),
@@ -114,6 +116,8 @@ export function previewWideSheet(
         subjects,
         existing,
         seen,
+        sessions,
+        taskResources,
       )[0];
       result.raw = {
         ...raw,
