@@ -1,0 +1,74 @@
+{
+  "name": "star-study",
+  "version": "0.4.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack --hostname 0.0.0.0",
+    "build": "npm run build:server && next build --webpack && node scripts/precache.mjs",
+    "start": "node scripts/serve.mjs",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write src tests scripts docs README.md *.ts *.mts *.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "db:migrate": "node dist/migrate.mjs",
+    "db:generate": "drizzle-kit generate",
+    "lint": "eslint src server scripts tests",
+    "build:server": "node scripts/build-server.mjs",
+    "test:platform": "vitest run tests/unit/platform.test.ts tests/unit/plan-protocol.test.ts",
+    "security:check": "node scripts/security-check.mjs",
+    "test:e2e:platform": "playwright test -c playwright.platform.config.ts",
+    "test:postgres": "node scripts/test-postgres.mjs",
+    "release:prepare": "node scripts/prepare-release.mjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.2.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
+    "dexie": "^4.2.0",
+    "dexie-react-hooks": "^4.2.0",
+    "drizzle-orm": "^0.45.4",
+    "exceljs": "^4.4.0",
+    "fast-xml-parser": "^5.11.2",
+    "jszip": "^3.10.2",
+    "lucide-react": "^0.468.0",
+    "next": "^16.0.0",
+    "pg": "^8.23.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^3.10.1",
+    "tailwind-merge": "^3.0.0",
+    "tsx": "^4.23.15",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.12",
+    "@playwright/test": "^1.56.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "drizzle-kit": "^0.31.11",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.4.3",
+    "fake-indexeddb": "^6.2.0",
+    "prettier": "^3.9.10",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.0.0"
+  },
+  "license": "AGPL-3.0-only",
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.12"
+    },
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
+  }
+}

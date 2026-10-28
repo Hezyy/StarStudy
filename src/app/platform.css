@@ -1,0 +1,294 @@
+/* Platform pages extend the existing Star Study tokens and interaction rules. */
+.auth-space,
+.onboarding-space {
+  width: min(100%, 760px);
+  min-height: 70vh;
+  margin: clamp(24px, 8vh, 96px) auto;
+  padding: 24px;
+  overflow-wrap: anywhere;
+}
+.auth-space {
+  max-width: 420px;
+}
+.auth-space .brand {
+  margin-bottom: 40px;
+}
+.auth-space form,
+.onboarding-space form {
+  display: grid;
+  gap: 20px;
+  margin: 28px 0;
+}
+.auth-space label,
+.onboarding-space label {
+  display: grid;
+  gap: 8px;
+}
+.auth-space small {
+  color: var(--muted);
+  line-height: 1.7;
+}
+.platform-fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.platform-fieldset > label {
+  margin-top: 24px;
+}
+.platform-fieldset:disabled {
+  opacity: 0.72;
+}
+.onboarding-space h1 {
+  font-size: 32px;
+  letter-spacing: -0.04em;
+}
+.onboarding-space > .eyebrow {
+  margin-top: 24px;
+}
+
+.sync-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 28px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.sync-strip > span {
+  min-width: 0;
+}
+.button-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+}
+.button-row > .button {
+  max-width: 100%;
+  white-space: normal;
+}
+.platform-form {
+  display: grid;
+  gap: 18px;
+  max-width: 760px;
+  margin: 20px 0;
+}
+.platform-form > .button,
+.platform-form > .button-row {
+  justify-self: start;
+}
+.platform-form > .button-row {
+  margin: 0;
+}
+.platform-form[aria-busy='true'] {
+  cursor: progress;
+}
+.platform-settings-form > .settings-section {
+  padding: 22px 0;
+  background: transparent;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+.platform-settings-form .inline-check {
+  margin: 0 0 20px;
+}
+.platform-preview {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+  margin: 20px 0 0;
+  padding: 20px;
+  background: var(--surface-soft);
+  border-radius: var(--radius-md, 12px);
+  overflow-wrap: anywhere;
+}
+.platform-preview .button-row {
+  margin: 0;
+}
+.platform-ai-result {
+  display: grid;
+  gap: 14px;
+  margin-top: 26px;
+}
+.platform-subject-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+}
+.platform-subject-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  align-items: center;
+  gap: 14px;
+  max-width: 660px;
+}
+.platform-subject-list .button {
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+}
+.platform-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.platform-user > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.platform-user .button-row {
+  margin: 0;
+}
+.platform-usage-list {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+}
+.platform-usage-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 10px 0;
+}
+.platform-usage-list time {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.wizard-steps {
+  list-style: none;
+  display: flex;
+  gap: 16px;
+  margin: 12px 0 36px;
+  padding: 0;
+  flex-wrap: wrap;
+}
+.wizard-steps li {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.wizard-steps span {
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  width: 25px;
+  height: 25px;
+}
+.wizard-steps li[aria-current] {
+  color: var(--navy);
+  font-weight: 600;
+}
+.wizard-steps li[aria-current] span {
+  background: var(--navy);
+  color: var(--surface);
+}
+.bounded-list {
+  max-height: 340px;
+  overflow: auto;
+  padding-left: 24px;
+  line-height: 1.9;
+}
+.settings-section > label:not(.inline-check) {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.task-linked-resources {
+  display: grid;
+  gap: 10px;
+  font-size: 12px;
+  margin-top: 12px;
+}
+.task-linked-resources > div {
+  padding: 8px 0;
+}
+.task-linked-resources .button-row {
+  gap: 8px;
+}
+.task-linked-resources form {
+  max-width: 520px;
+  margin-top: 8px;
+}
+.settings-section details {
+  margin: 18px 0;
+  overflow-wrap: anywhere;
+}
+.settings-section summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.sidebar nav {
+  min-height: 0;
+  overflow-y: auto;
+}
+.task-card.custom {
+  --subject-color: #667085;
+}
+
+@media (max-width: 767px) {
+  .sync-strip {
+    padding: 8px 18px;
+    gap: 4px;
+  }
+  .sync-strip .button {
+    min-height: 36px;
+  }
+  .wizard-steps {
+    gap: 10px 14px;
+    margin-bottom: 22px;
+  }
+  .wizard-steps li {
+    font-size: 11px;
+  }
+  .auth-space,
+  .onboarding-space {
+    padding: 20px;
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+    margin: 20px auto 60px;
+  }
+  .onboarding-space h1 {
+    font-size: 27px;
+  }
+  .platform-form {
+    gap: 16px;
+  }
+  .platform-form .button-row {
+    gap: 8px;
+  }
+  .platform-subject-list > div {
+    grid-template-columns: minmax(0, 1fr) 144px;
+    gap: 6px;
+  }
+  .platform-subject-list select {
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+  .platform-preview {
+    padding: 16px;
+  }
+  .platform-user {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .platform-user > div {
+    width: 100%;
+  }
+  .platform-usage-list li {
+    gap: 2px 12px;
+  }
+}

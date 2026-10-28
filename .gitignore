@@ -1,0 +1,23 @@
+node_modules/
+.next/
+out/
+dist/
+public/source/
+.npm-cache/
+test-results/
+playwright-report/
+.playwright-browsers/
+# Windows WebKit diagnostic/cache sidecars (test profiles live in test-results).
+AlternativeServices/
+IsolatedSites/
+Storage/
+imports/
+backups/
+uploads/
+data/
+*.pem
+*.key
+.platform-test/
+*.tsbuildinfo
+.env*
+!.env.example

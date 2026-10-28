@@ -1,0 +1,11 @@
+import { mkdir,writeFile } from 'node:fs/promises';
+import { studyPlanSchema } from '../src/schemas/study-plan';
+const plan={schemaVersion:'1.0.0',planId:'example-plan',planName:'星研计划格式示例（合成数据）',generatedAt:'2026-10-28T00:00:00.000Z',startDate:'2027-01-01',endDate:'2027-01-02',timezone:'Asia/Shanghai',examTarget:{university:'请填写本人目标',major:'请填写本人专业',examDate:'2027-12-25'},subjects:[{externalId:'math',name:'数学一',category:'math',priority:1}],resources:[],knowledgePoints:[],tasks:[{externalId:'jan01-review',date:'2027-01-01',subjectId:'math',title:'回顾基础概念',description:'先复习定义，再完成基础练习',estimatedMinutes:30,taskType:'review',priority:1,knowledgePointIds:[],resourceIds:[],exerciseDescription:'自行补充真实练习位置',notes:''}],metadata:{source:'协议示例',notes:'所有示例均为合成数据，不含真实网课或题号'}};
+const complete=structuredClone(plan) as unknown as Record<string,unknown>;
+complete.resources=[{externalId:'course01',subjectId:'math',title:'本人使用的课程（待核实）',url:'',teacher:'',courseName:'',chapter:'基础',section:''}];
+complete.knowledgePoints=[{externalId:'kp01',subjectId:'math',name:'基础概念',chapter:'基础',dependencyIds:[]},{externalId:'kp02',subjectId:'math',name:'应用练习',chapter:'基础',dependencyIds:['kp01']}];
+complete.tasks=[{...plan.tasks[0],knowledgePointIds:['kp01'],resourceIds:['course01']},{...plan.tasks[0],externalId:'jan02-exercise',date:'2027-01-02',title:'应用练习',taskType:'exercise',knowledgePointIds:['kp02']}];
+studyPlanSchema.parse(plan);studyPlanSchema.parse(complete);
+await mkdir('public/templates',{recursive:true});
+for(const[name,value]of Object.entries({'study-plan.schema.json':studyPlanSchema.toJSONSchema(),'study-plan.minimal.json':plan,'study-plan.complete.json':complete,'study-plan.invalid.json':{...plan,tasks:[{...plan.tasks[0],date:'2027-02-30',estimatedMinutes:-10}]}}))await writeFile(`public/templates/${name}`,JSON.stringify(value,null,2)+'\n');
+console.log('星研计划协议、最小/完整/错误示例已生成');

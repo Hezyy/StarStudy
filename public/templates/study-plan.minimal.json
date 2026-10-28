@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "1.0.0",
+  "planId": "example-plan",
+  "planName": "星研计划格式示例（合成数据）",
+  "generatedAt": "2026-10-28T00:00:00.000Z",
+  "startDate": "2027-01-01",
+  "endDate": "2027-01-02",
+  "timezone": "Asia/Shanghai",
+  "examTarget": {
+    "university": "请填写本人目标",
+    "major": "请填写本人专业",
+    "examDate": "2027-12-25"
+  },
+  "subjects": [
+    {
+      "externalId": "math",
+      "name": "数学一",
+      "category": "math",
+      "priority": 1
+    }
+  ],
+  "resources": [],
+  "knowledgePoints": [],
+  "tasks": [
+    {
+      "externalId": "jan01-review",
+      "date": "2027-01-01",
+      "subjectId": "math",
+      "title": "回顾基础概念",
+      "description": "先复习定义，再完成基础练习",
+      "estimatedMinutes": 30,
+      "taskType": "review",
+      "priority": 1,
+      "knowledgePointIds": [],
+      "resourceIds": [],
+      "exerciseDescription": "自行补充真实练习位置",
+      "notes": ""
+    }
+  ],
+  "metadata": {
+    "source": "协议示例",
+    "notes": "所有示例均为合成数据，不含真实网课或题号"
+  }
+}

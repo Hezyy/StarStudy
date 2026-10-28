@@ -1,0 +1,14 @@
+{
+  "app": "星研",
+  "kind": "plan-adjustment",
+  "schemaVersion": 1,
+  "basePlanVersion": 0,
+  "reason": "格式示例：版本号、任务ID及日期必须替换为当前报告中的真实值",
+  "changes": [
+    {
+      "operation": "update",
+      "taskId": "11111111-1111-4111-8111-111111111111",
+      "plan": { "date": "2026-11-01", "estimatedMinutes": 30 }
+    }
+  ]
+}

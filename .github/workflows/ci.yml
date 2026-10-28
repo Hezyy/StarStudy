@@ -1,0 +1,111 @@
+name: 星研 checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run security:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Shell syntax
+        run: for source in scripts/*.sh; do bash -n "$source"; done
+      - name: Deployment script control-flow smoke tests
+        run: bash scripts/test-deployment.sh
+      - name: Docker build
+        run: docker build -t star-study-ci .
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: star_study
+          POSTGRES_DB: star_study_test
+          POSTGRES_PASSWORD: ci-test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U star_study -d star_study_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_POSTGRES_URL: postgres://star_study:ci-test-only@127.0.0.1:5432/star_study_test
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:postgres
+
+  browser:
+    name: Browser / ${{ matrix.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [local, platform]
+    env:
+      DATABASE_URL: ''
+      STAR_STUDY_TEST_DATABASE: ''
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install browser engines and system dependencies
+        run: npx playwright install --with-deps chromium webkit
+      - name: Local PWA regression
+        if: matrix.suite == 'local'
+        env:
+          STAR_STUDY_TEST_URL: http://127.0.0.1:3000
+        run: npm run test:e2e
+      - name: Isolated account platform regression
+        if: matrix.suite == 'platform'
+        run: npm run test:e2e:platform
+      - name: Preserve browser reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-${{ matrix.suite }}-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7
