@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url';
 const root = process.cwd(),
   ref = 'refs/heads/codex/public-release';
 const git = (args, options = {}) =>
-  execFileSync('git', args, { cwd: root, encoding: 'utf8', ...options }).trim();
+  execFileSync('git', args, {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'pipe'],
+    ...options,
+  }).trim();
 if (git(['status', '--porcelain']))
   throw new Error('请先审查并提交当前改动。发布准备不会覆盖未提交文件。');
 execFileSync(process.execPath, [fileURLToPath(new URL('./security-check.mjs', import.meta.url))], {
