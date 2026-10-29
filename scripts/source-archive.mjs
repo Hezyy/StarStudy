@@ -16,6 +16,7 @@ export async function sourceArchive() {
     'vitest.config.mts',
     'playwright.config.ts',
     'playwright.platform.config.ts',
+    'playwright.prefix.config.ts',
     'eslint.config.mjs',
     'drizzle.config.ts',
     'components.json',
@@ -35,9 +36,11 @@ export async function sourceArchive() {
     'Dockerfile',
     'compose.yaml',
     'Caddyfile',
+    'starstudy.sh',
   ];
   async function add(file) {
-    if (file.startsWith('public/source/') || file.startsWith('docs/screenshots/')) return;
+    if (file.startsWith('public/source/') || file.startsWith('docs/screenshots/') ||
+        file.split('/').includes('__pycache__') || /\.py[co]$/.test(file)) return;
     const stat = await readdir(file, { withFileTypes: true }).catch(() => null);
     if (stat) {
       for (const entry of stat) await add(`${file}/${entry.name}`);

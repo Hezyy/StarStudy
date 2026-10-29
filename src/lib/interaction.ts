@@ -1,4 +1,5 @@
 'use client';
+import { appStorageKey } from '@/lib/app-path';
 import { useState, useEffect, type Dispatch, type SetStateAction } from 'react';
 import { db } from '@/db';
 let lastActivated: HTMLElement | null = null;
@@ -44,8 +45,9 @@ export function useViewState<T>(
   key: string,
   initial: T | (() => T),
 ): [T, Dispatch<SetStateAction<T>>] {
-  const storageKey =
-    db.name === 'star-study' ? 'star-study:view:' + key : `star-study:view:${db.name}:${key}`;
+  const storageKey = appStorageKey(
+    db.name === 'star-study' ? 'star-study:view:' + key : `star-study:view:${db.name}:${key}`,
+  );
   const [value, setValue] = useState<T>(() => {
     const fallback = typeof initial === 'function' ? (initial as () => T)() : initial;
     try {

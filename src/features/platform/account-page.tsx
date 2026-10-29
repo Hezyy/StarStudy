@@ -1,4 +1,5 @@
 'use client';
+import { appStorageKey } from '@/lib/app-path';
 import { useRef, useState } from 'react';
 import Link from '@/components/ui/app-link';
 import { usePlatform } from './platform';
@@ -105,7 +106,7 @@ export function AccountPage() {
               onClick={() =>
                 app.run(async () => {
                   await platform.request('/logout', 'POST', {});
-                  localStorage.removeItem('star-account');
+                  localStorage.removeItem(appStorageKey('star-account'));
                   platform.announce();
                   location.reload();
                 })
@@ -360,8 +361,8 @@ export function AccountPage() {
                         password: fields.get('password'),
                         confirmation: fields.get('confirmation'),
                       });
-                      localStorage.removeItem('star-account');
-                      localStorage.removeItem(`star-sync:${platform.user!.id}`);
+                      localStorage.removeItem(appStorageKey('star-account'));
+                      localStorage.removeItem(appStorageKey(`star-sync:${platform.user!.id}`));
                       platform.announce();
                       await database.delete();
                       location.reload();

@@ -11,7 +11,7 @@ const failures = [];
 for (const p of paths) {
   if (/(^|\/)(\.env(?:\..*)?|backups|imports|uploads|data)(\/|$)/.test(p) && p !== '.env.example')
     failures.push(`${p}: 私有文件不得进入版本控制`);
-  if (!/\.(?:[cm]?[jt]sx?|json|ya?ml|md|sh|sql|example)$/.test(p)) continue;
+  if (!/\.(?:[cm]?[jt]sx?|json|ya?ml|md|sh|py|sql|example)$/.test(p) && !/(?:^|\/)Caddyfile(?:\.legacy)?$/.test(p)) continue;
   const text = await readFile(p, 'utf8');
   if (/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/.test(text))
     failures.push(`${p}: 包含私钥`);

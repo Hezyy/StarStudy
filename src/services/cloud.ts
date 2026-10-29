@@ -1,3 +1,4 @@
+import { appStorageKey } from '@/lib/app-path';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { IntegrationConfig } from './integrations';
 import { validateBackup, type Backup } from './backup';
@@ -139,12 +140,12 @@ export async function supabaseStore(
 export const cursorKey = (url: string, userId: string) => `star-study-sync:${url}:${userId}`;
 export function readCursor(key: string): SyncCursor | null {
   try {
-    const v = JSON.parse(localStorage.getItem(key) ?? 'null');
+    const v = JSON.parse(localStorage.getItem(appStorageKey(key)) ?? 'null');
     return v && Number.isInteger(v.revision) && typeof v.dataHash === 'string' ? v : null;
   } catch {
     return null;
   }
 }
 export function writeCursor(key: string, value: SyncCursor) {
-  localStorage.setItem(key, JSON.stringify(value));
+  localStorage.setItem(appStorageKey(key), JSON.stringify(value));
 }

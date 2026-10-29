@@ -18,7 +18,9 @@ npm run build
 npm start
 ```
 
-服务支持读取项目内`.env.local`，Compose生产配置使用`.env`注入。生产`PUBLIC_URL`必须为HTTPS。不要把用户密码/API密钥放URL或命令历史；上方连接串仅说明结构，正式配置写入权限受限的文件。Docker安装向导会自动生成必要随机值。
+服务支持读取项目内`.env.local`，Compose生产配置使用`.env`注入。生产`PUBLIC_URL`必须为HTTPS。不要把用户密码/API密钥放URL或命令历史；上方连接串仅说明结构，正式配置写入权限受限的文件。服务器使用[统一管理菜单](DEPLOYMENT.md)，自动准备依赖并生成必要随机值，无需手动编辑环境配置。
+
+新安装使用随机端口与访问前缀。`APP_BASE_PATH`与构建时`NEXT_PUBLIC_BASE_PATH`必须一致；Compose自动传入。`PUBLIC_URL`包括协议、域名、实际端口及前缀，来源校验仍使用其origin；Cookie、API和PWA限定在相同前缀。旧根路径模式保持兼容。不要通过修改代理隐藏前缀，或把真实随机路径写入公开文档。
 
 ## 主要配置
 
@@ -34,7 +36,10 @@ npm start
 | OPENAI_API_KEY / OPENAI_CHAT_MODEL                       | 可选其他Provider的密钥/模型                                            |
 | AI_TIMEOUT_MS                                            | 模型请求超时，默认45000毫秒                                            |
 | AI_INPUT_PRICE_PER_MILLION / AI_OUTPUT_PRICE_PER_MILLION | 自选货币/百万tokens估算单价，空值不提供费用估值                        |
-| LAST_BACKUP_AT                                           | 部署备份元数据；备份脚本更新.env，下次重建应用后读取，不是实时备份监测 |
+| LAST_BACKUP_AT                                           | 旧部署可选备份元数据；统一脚本改用私有备份状态文件，后台不是实时备份监控 |
+| APP_BASE_PATH / NEXT_PUBLIC_BASE_PATH | 运行与构建路径；新服务器首次生成后保留，空值保留根路径模式 |
+| HTTPS_PORT / HTTP_PORT | 宿主实际HTTPS端口 / HTTP-01的80端口 |
+| INSTALL_ID / COMPOSE_PROJECT_NAME | 持久安装身份及资源归属，不能改成其他项目的名称 |
 
 真实值不得提交Git，不使用`NEXT_PUBLIC_`前缀。`.env.example`仅说明格式。旧版Supabase连接属于兼容入口，不等同于当前内置平台；不要同时把同一缓存连接两套服务器同步。
 

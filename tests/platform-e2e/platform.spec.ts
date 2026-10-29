@@ -68,7 +68,7 @@ async function secondDevice(
   info: TestInfo,
   email: string,
 ) {
-  if (browser.browserType().name() !== 'webkit')
+  if (browser.browserType().name() !== 'webkit' || process.platform !== 'win32')
     return browser.newContext({
       storageState: await current.storageState(),
       viewport: { width: 375, height: 812 },

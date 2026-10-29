@@ -1,4 +1,5 @@
 'use client';
+import { appUrl } from '@/lib/app-path';
 import {
   createContext,
   useCallback,
@@ -125,7 +126,7 @@ export function Provider({ children }: { children: ReactNode }) {
   if (!value)
     return (
       <main className="boot" aria-busy="true">
-        <img src="/icons/star.svg" alt="" width="48" height="48" />
+        <img src={appUrl('/icons/star.svg')} alt="" width="48" height="48" />
         <h1>星研</h1>
         <p>正在打开你的学习空间…</p>
         <div className="boot-line" />

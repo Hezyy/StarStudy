@@ -4,6 +4,7 @@ import { useApp } from './provider';
 import { Button } from './ui/button';
 import { db } from '@/db';
 import { entity, today } from '@/lib/utils';
+import { appUrl } from '@/lib/app-path';
 interface ReminderConfig {
   enabled: boolean;
   hour: number;
@@ -40,10 +41,10 @@ export function ReminderManager() {
           body = `待继续任务 ${count} 项，待复习错题 ${due} 道。给今天留一小段专注时间。`;
         const r =
           'serviceWorker' in navigator
-            ? await navigator.serviceWorker.getRegistration()
+            ? await navigator.serviceWorker.getRegistration(appUrl('/'))
             : undefined;
         if (cancelled) return;
-        if (r) await r.showNotification(title, { body, icon: '/icons/icon-192.png' });
+        if (r) await r.showNotification(title, { body, icon: appUrl('/icons/icon-192.png') });
         else new Notification(title, { body });
         await database.settings.update(setting.id, {
           value: { ...config, lastNotified: date },

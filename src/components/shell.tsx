@@ -1,4 +1,5 @@
 'use client';
+import { appUrl } from '@/lib/app-path';
 import Link from '@/components/ui/app-link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -48,7 +49,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const app = useApp();
   const platform = usePlatform();
-  const visibleNav = nav.filter(n=>n.href!=='/admin/' || platform.user?.role==='admin');
+  const visibleNav = nav.filter((n) => n.href !== '/admin/' || platform.user?.role === 'admin');
   const [more, setMore] = useState(false);
   const lastPath = useRef(path);
   useEffect(() => {
@@ -82,7 +83,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </a>
       <aside className="sidebar">
         <Link href="/" className="brand">
-          <img src="/icons/star.svg" alt="" width="40" height="40" />
+          <img src={appUrl('/icons/star.svg')} alt="" width="40" height="40" />
           <span>
             <strong>星研</strong>
             <small>STAR STUDY</small>
@@ -110,7 +111,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <span className="local-status">
             <span />
-            {platform.enabled?'账户独立缓存':'数据保存在此设备'}
+            {platform.enabled ? '账户独立缓存' : '数据保存在此设备'}
           </span>
           <small>v0.4.0 · 为每天的一小步</small>
         </div>
@@ -126,7 +127,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="top-actions">
             <span className="privacy-label">
               <ShieldCheck size={15} />
-              {platform.enabled?'独立账户，安心学习':'本地数据，安心学习'}
+              {platform.enabled ? '独立账户，安心学习' : '本地数据，安心学习'}
             </span>
             <button className="theme-toggle" aria-label="切换浅色或深色主题" onClick={theme}>
               <Sun className="sun" size={18} />
@@ -137,7 +138,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         </header>
-        <PwaStatus /><SyncStatus />
+        <PwaStatus />
+        <SyncStatus />
         <main className="main-content" id="main-content" tabIndex={-1}>
           <div className="route-scene" key={path}>
             {children}
@@ -145,7 +147,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </main>
         <footer className="page-footer">
           <span>星研 · 记录努力，看见成长</span>
-          <a href="/source/star-study-source.zip" download>对应源码 · AGPL-3.0</a>
+          <a href={appUrl('/source/star-study-source.zip')} download>
+            对应源码 · AGPL-3.0
+          </a>
           <Link href="/settings/">
             记得定期备份你的学习数据 <ChevronRight size={12} />
           </Link>

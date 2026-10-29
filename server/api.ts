@@ -18,6 +18,7 @@ import { AiService } from './ai';
 import { previewStudyPlan } from '../src/services/study-plan';
 import { importModeSchema } from '../src/schemas/study-plan';
 import type { PlanPreview } from '../src/services/study-plan';
+import { normalizeBasePath } from '../scripts/base-path.mjs';
 import { validateBackup, type Backup } from '../src/services/backup';
 import { TABLE_NAMES } from '../src/types';
 const credentials = z.strictObject({
@@ -105,6 +106,15 @@ export function platformApi(
   if (secret.length < 32) throw new Error('SESSION_SECRET必须至少32字符');
   const publicUrl = new URL(origin),
     secure = publicUrl.protocol === 'https:';
+  const basePath = normalizeBasePath(env.APP_BASE_PATH ?? '');
+  if (
+    (publicUrl.pathname === '/' ? '' : publicUrl.pathname) !== basePath ||
+    publicUrl.search ||
+    publicUrl.hash ||
+    publicUrl.username ||
+    publicUrl.password
+  )
+    throw new Error('PUBLIC_URL须与APP_BASE_PATH一致，并且不含查询、片段或账户信息');
   if (
     !secure &&
     !(
@@ -130,7 +140,7 @@ export function platformApi(
     { owner: string; base: number; backup: Backup; expires: number }
   >();
   const cookie = (raw: string, maxAge = 30 * 86400) =>
-    `star_session=${raw}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
+    `star_session=${raw}; Path=${basePath}/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? '; Secure' : ''}`;
   async function authenticate(req: IncomingMessage) {
     const raw = /(?:^|;\s*)star_session=([\w-]+)/.exec(req.headers.cookie ?? '')?.[1];
     if (!raw) throw new HttpError(401, '请先登录');

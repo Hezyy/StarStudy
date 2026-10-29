@@ -1,4 +1,5 @@
 'use client';
+import { appStorageKey } from '@/lib/app-path';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePlatform } from './platform';
 import { useApp } from '@/components/provider';
@@ -53,7 +54,7 @@ export function SyncStatus() {
           : undefined;
         if (queued && forcePull) show('正在等待当前同步结束，再读取服务器版本…');
         await accountOperation(accountId, async () => {
-          const key = `star-sync:${accountId}`,
+          const key = appStorageKey(`star-sync:${accountId}`),
             cursor = JSON.parse(localStorage.getItem(key) ?? 'null') as {
               version: number;
               hash: string;
@@ -101,7 +102,10 @@ export function SyncStatus() {
         });
       } catch (e) {
         const status = (e as { status?: number }).status;
-        show(e instanceof Error ? e.message : '同步失败，可稍后重试', status === 409 ? true : undefined);
+        show(
+          e instanceof Error ? e.message : '同步失败，可稍后重试',
+          status === 409 ? true : undefined,
+        );
       } finally {
         busy.current--;
       }

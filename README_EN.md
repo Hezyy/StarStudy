@@ -18,25 +18,29 @@ Open [localhost:3000](http://localhost:3000). With `DATABASE_URL` unset, no acco
 
 ## Self-host with accounts
 
-The Linux installer targets Ubuntu 22.04/24.04 or Debian 12/13 on x86_64, with Docker Engine and Compose v2 installed:
+From an interactive SSH terminal on your own Linux server, use the single management entry point:
 
 ```sh
-bash scripts/install.sh
+curl -fsSL https://raw.githubusercontent.com/Hezyy/StarStudy/main/starstudy.sh | sudo bash
 ```
 
-It generates random database/session/setup secrets and starts PostgreSQL 17, migrations, the application and Caddy. Registration defaults to invitation-only. There is no default administrator password: the owner uses the installation token to create the first administrator. A domain pointing to the server and ports 80/443 are required for HTTPS. Without a domain, explicit test mode binds only to loopback (`127.0.0.1:8080`); public HTTP account service is rejected.
-
-**Docker, clean Linux installation, real iPhone/Android devices and ARM64 have not been fully verified in this Windows environment.** Shell/YAML checks and embedded PostgreSQL tests are not production deployment acceptance. Follow [deployment documentation](docs/DEPLOYMENT.md) on a clean test machine before inviting other people. ARM64 is currently rejected by the installer.
+After installation, run:
 
 ```sh
-bash scripts/doctor.sh
-bash scripts/backup.sh
-bash scripts/update.sh vX.Y.Z
-bash scripts/restore.sh /absolute/path/to/backup
-bash scripts/uninstall.sh
+sudo starstudy
 ```
 
-Updates require an actually published stable tag; `vX.Y.Z` is a placeholder. Default uninstall preserves database volumes, backups and configuration. Destructive purge requires two confirmations and creates a backup first.
+The numbered menu covers installation, updates, uninstall, status, logs, restart, backup, restore, diagnosis and exit. It reads every prompt from the controlling terminal, including when launched through a pipe. Missing project dependencies, Git, Docker Engine and the Compose plugin are prepared automatically; no Node.js installation or manual environment editing is required on the server.
+
+The wizard requires a domain. **ACME contact email is optional: press Enter to skip.** An empty email does not block issuance or renewal, but certificate notifications may be unavailable. The HTTPS port is optional; an unused port is selected from 20000–60000 by default. The access prefix and credentials are securely generated once and retained across updates/restarts. Registration defaults to invitations; the owner uses the generated setup token to create the first administrator.
+
+You must control the domain and correctly configure its A/AAAA records. HTTP-01 requires externally reachable **TCP 80**, and the selected HTTPS port must also be allowed through the firewall/cloud security group. The manager does not change DNS, disable firewalls, open an entire port range or alter SSH. The random path is an additional entry point, not a replacement for authentication.
+
+Supported hosts remain Ubuntu 22.04/24.04 and Debian 12/13 on x86_64, with at least 2GB memory and 5GB free disk; 4GB+ memory is recommended for builds. ARM64 is not validated. The initial command itself requires working curl, sudo and Bash; minimal OS images missing these basic tools need their package manager or provider console first.
+
+Application updates require a real, non-prerelease stable release. If none exists, the manager says so; first installation of a pinned development snapshot requires explicit acceptance. It does not invent a stable release or unconditionally update from main. Default uninstall retains data; destructive removal lists owned resources, requires a verified backup and two confirmations. Unknown directories, local source changes and unrelated Docker resources are protected.
+
+**Public ACME issuance and actual iPhone/Android devices require independent acceptance.** See the [manager test report](docs/MANAGER_DELIVERY.md) for checks actually run locally and in Linux CI, then follow the [deployment documentation](docs/DEPLOYMENT.md) on an independent test machine.
 
 ## Included workflows
 
@@ -82,4 +86,4 @@ Account unit tests use PGlite by default. Network PostgreSQL testing requires a 
 
 [Platform](docs/PLATFORM.md) · [Deployment](docs/DEPLOYMENT.md) · [AI protocol](docs/AI_PLAN_IMPORT.md) · [GitHub publication](docs/GITHUB_RELEASE.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Conduct](CODE_OF_CONDUCT.md) · [Changes](CHANGELOG.md)
 
-No remote repository has been created, no code pushed, and no public deployment performed on the owner's behalf. Before publication, audit files and history for secrets/private data and provide corresponding source for the version deployed. Third-party dependencies and course materials retain their respective rights.
+The source repository is public at [Hezyy/StarStudy](https://github.com/Hezyy/StarStudy). Public source availability does not mean a production service has been deployed or validated. Continue auditing every release for secrets/private data and provide corresponding source for the deployed version. Third-party dependencies and course materials retain their respective rights.

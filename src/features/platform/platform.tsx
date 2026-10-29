@@ -1,4 +1,5 @@
 'use client';
+import { appUrl, appStorageKey } from '@/lib/app-path';
 import {
   createContext,
   useCallback,
@@ -64,7 +65,7 @@ export function PlatformGate({ children }: { children: ReactNode }) {
   }>({ ready: false, enabled: false, setup: false, user: null, csrf: '', error: '' });
   const request = useCallback(
     async <T,>(path: string, method = 'GET', data?: unknown): Promise<T> => {
-      const response = await fetch(`/api/platform${path}`, {
+      const response = await fetch(appUrl(`/api/platform${path}`), {
         method,
         credentials: 'same-origin',
         cache: 'no-store',
@@ -86,14 +87,14 @@ export function PlatformGate({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     const attempt = ++refreshEpoch.current;
     try {
-      const response = await fetch('/api/platform/status', {
+      const response = await fetch(appUrl('/api/platform/status'), {
         cache: 'no-store',
         signal: AbortSignal.timeout(5000),
       });
       if (attempt !== refreshEpoch.current) return;
       if (response.status === 404) {
-        localStorage.setItem('star-platform-mode', 'local');
-        localStorage.removeItem('star-account');
+        localStorage.setItem(appStorageKey('star-platform-mode'), 'local');
+        localStorage.removeItem(appStorageKey('star-account'));
         switchScope();
         setState((s) => ({
           ...s,
@@ -110,8 +111,8 @@ export function PlatformGate({ children }: { children: ReactNode }) {
       const status = (await response.json()) as { enabled: boolean; setupRequired: boolean };
       if (attempt !== refreshEpoch.current) return;
       if (!status.enabled) {
-        localStorage.setItem('star-platform-mode', 'local');
-        localStorage.removeItem('star-account');
+        localStorage.setItem(appStorageKey('star-platform-mode'), 'local');
+        localStorage.removeItem(appStorageKey('star-account'));
         switchScope();
         setState((s) => ({
           ...s,
@@ -124,14 +125,14 @@ export function PlatformGate({ children }: { children: ReactNode }) {
         }));
         return;
       }
-      localStorage.setItem('star-platform-mode', 'account');
-      const session = await fetch('/api/platform/session', {
+      localStorage.setItem(appStorageKey('star-platform-mode'), 'account');
+      const session = await fetch(appUrl('/api/platform/session'), {
         cache: 'no-store',
         signal: AbortSignal.timeout(10000),
       });
       if (attempt !== refreshEpoch.current) return;
       if (session.status === 401) {
-        localStorage.removeItem('star-account');
+        localStorage.removeItem(appStorageKey('star-account'));
         switchScope();
         setState({
           ready: true,
@@ -152,7 +153,7 @@ export function PlatformGate({ children }: { children: ReactNode }) {
       await initialize(database);
       if (!existing) {
         const guard = await backupPreview(await createBackup(database), database);
-        const remote = await fetch('/api/platform/data', {
+        const remote = await fetch(appUrl('/api/platform/data'), {
           cache: 'no-store',
           signal: AbortSignal.timeout(30000),
           headers: { 'X-Star-Study-Account': auth.user.id },
@@ -162,22 +163,26 @@ export function PlatformGate({ children }: { children: ReactNode }) {
         if (attempt !== refreshEpoch.current) return;
         await restoreBackup(payload.backup, database, guard.currentSignature);
         localStorage.setItem(
-          `star-sync:${auth.user.id}`,
+          appStorageKey(`star-sync:${auth.user.id}`),
           JSON.stringify({ version: payload.version, hash: await dataHash(payload.backup) }),
         );
       }
       if (attempt !== refreshEpoch.current) return;
-      localStorage.setItem('star-account', JSON.stringify(auth.user));
+      localStorage.setItem(appStorageKey('star-account'), JSON.stringify(auth.user));
       setState({ ready: true, enabled: true, setup: false, ...auth, error: '' });
     } catch (e) {
       if (attempt !== refreshEpoch.current) return;
       // Only a previously signed-in account may reopen its own offline cache. No new offline login.
-      const cached = localStorage.getItem('star-account');
+      const cached = localStorage.getItem(appStorageKey('star-account'));
       const unreachable =
         !navigator.onLine ||
         e instanceof TypeError ||
         (e instanceof Error && ['TimeoutError', 'AbortError'].includes(e.name));
-      if (unreachable && cached && localStorage.getItem('star-platform-mode') === 'account') {
+      if (
+        unreachable &&
+        cached &&
+        localStorage.getItem(appStorageKey('star-platform-mode')) === 'account'
+      ) {
         try {
           const user = JSON.parse(cached) as Account;
           switchScope(user.id);
@@ -185,7 +190,7 @@ export function PlatformGate({ children }: { children: ReactNode }) {
           return;
         } catch {}
       }
-      if (unreachable && localStorage.getItem('star-platform-mode') === 'local') {
+      if (unreachable && localStorage.getItem(appStorageKey('star-platform-mode')) === 'local') {
         switchScope();
         setState((s) => ({
           ...s,
@@ -208,7 +213,7 @@ export function PlatformGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     const epoch = refreshEpoch;
     void refresh();
-    channel.current = new BroadcastChannel('star-account-events');
+    channel.current = new BroadcastChannel(appStorageKey('star-account-events'));
     channel.current.onmessage = () => location.reload();
     const online = () => void refresh();
     window.addEventListener('online', online);
@@ -261,7 +266,7 @@ function AuthForm({ setup, onDone }: { setup: boolean; onDone: () => Promise<voi
   return (
     <main className="auth-space">
       <Link className="brand" href="/">
-        <img src="/icons/star.svg" width="44" height="44" alt="" />
+        <img src={appUrl('/icons/star.svg')} width="44" height="44" alt="" />
         <span>
           <strong>星研</strong>
           <small>STAR STUDY</small>
@@ -279,7 +284,7 @@ function AuthForm({ setup, onDone }: { setup: boolean; onDone: () => Promise<voi
           const data = Object.fromEntries(fields);
           try {
             const res = await fetch(
-              `/api/platform/${setup ? 'setup' : register ? 'register' : 'login'}`,
+              appUrl(`/api/platform/${setup ? 'setup' : register ? 'register' : 'login'}`),
               {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -354,7 +359,7 @@ function AuthForm({ setup, onDone }: { setup: boolean; onDone: () => Promise<voi
         </Button>
       )}
       <small>账户数据仅用于此部署。请使用可信的 HTTPS 服务。</small>
-      <a href="/source/star-study-source.zip" download>
+      <a href={appUrl('/source/star-study-source.zip')} download>
         对应源码 · AGPL-3.0
       </a>
     </main>

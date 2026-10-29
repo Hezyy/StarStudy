@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { WifiOff, RefreshCw, Download } from 'lucide-react';
 import { Button } from './ui/button';
 import { useApp } from './provider';
+import { appUrl } from '@/lib/app-path';
 type InstallPrompt = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: string }>;
@@ -24,7 +25,7 @@ export function PwaStatus() {
     window.addEventListener('beforeinstallprompt', prompt);
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production')
       navigator.serviceWorker
-        .register('/sw.js')
+        .register(appUrl('/sw.js'), { scope: appUrl('/') })
         .then((r) => {
           if (r.waiting) setWaiting(r.waiting);
           r.addEventListener('updatefound', () => {

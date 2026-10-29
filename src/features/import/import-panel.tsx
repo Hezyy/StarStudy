@@ -1,4 +1,5 @@
 'use client';
+import { appUrl } from '@/lib/app-path';
 import { useMemo, useState } from 'react';
 import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { useApp } from '@/components/provider';
@@ -139,7 +140,7 @@ export function ImportPanel() {
           onClick={async () => {
             setBusy(true);
             await app.run(async () => {
-              const r = await fetch('/api/local-import', { cache: 'no-store' });
+              const r = await fetch(appUrl('/api/local-import'), { cache: 'no-store' });
               if (!r.ok) throw new Error('本机导入附件不可用，请用上方文件选择器选取原始Excel');
               await load(await r.arrayBuffer(), '已提供的426天每日打卡计划.xlsx');
             }, '已载入本机附件，请预览确认');

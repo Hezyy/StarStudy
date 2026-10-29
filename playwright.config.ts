@@ -6,8 +6,8 @@ export default defineConfig({
   workers: 1,
   reporter: [
     ['list'],
-    ['html', { open: 'never' }],
-    ['json', { outputFile: 'playwright-report/results.json' }],
+    ['html', { outputFolder: 'playwright-report/local', open: 'never' }],
+    ['json', { outputFile: 'playwright-report/local/results.json' }],
   ],
   timeout: 45000,
   use: { baseURL, trace: 'retain-on-failure' },

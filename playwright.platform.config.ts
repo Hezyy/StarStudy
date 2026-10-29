@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 mkdirSync('.platform-test', { recursive: true });
 export default defineConfig({
   testDir: './tests/platform-e2e',
+  outputDir: '.platform-test/platform-results',
   fullyParallel: false,
   workers: 1,
   timeout: 60000,

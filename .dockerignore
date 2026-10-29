@@ -21,3 +21,6 @@ AlternativeServices
 *.pem
 *.key
 .platform-test
+__pycache__
+*.pyc
+*.pyo

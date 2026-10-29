@@ -18,6 +18,12 @@ data/
 *.pem
 *.key
 .platform-test/
+.starstudy-install
+.starstudy-bootstrap
+.starstudy-operation.lock
+.starstudy-backup-state
+__pycache__/
+*.py[cod]
 *.tsbuildinfo
 .env*
 !.env.example

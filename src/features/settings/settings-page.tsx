@@ -1,4 +1,5 @@
 'use client';
+import { appUrl } from '@/lib/app-path';
 import { useViewState } from '@/lib/interaction';
 import { useUnsavedChanges } from '@/lib/interaction';
 import { useEffect, useState } from 'react';
@@ -64,7 +65,7 @@ export function SettingsPage() {
       )}
       {tab === 'app' && (
         <section className="panel settings-section prose">
-          <img src="/icons/star.svg" alt="星研应用图标" width={64} height={64} />
+          <img src={appUrl('/icons/star.svg')} alt="星研应用图标" width={64} height={64} />
           <h2>星研</h2>
           <p>以星为引，逐梦研途。</p>
           <p>版本 0.4.0 · 离线学习与可选独立账户 · 无需付费AI接口也可使用</p>
@@ -92,7 +93,7 @@ export function SettingsPage() {
             申请浏览器持久存储
           </Button>
           <p>
-            <a href="/integrations/">配置云同步、服务端AI与本机提醒 →</a>
+            <a href={appUrl('/integrations/')}>配置云同步、服务端AI与本机提醒 →</a>
           </p>
           <h3>离线使用与更新</h3>
           <p>

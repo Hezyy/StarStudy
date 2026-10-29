@@ -4,6 +4,8 @@ COPY package*.json ./
 RUN npm ci --no-audit --no-fund
 
 FROM dependencies AS build
+ARG NEXT_PUBLIC_BASE_PATH=""
+ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH} APP_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
 COPY . .
 RUN npm run build
 

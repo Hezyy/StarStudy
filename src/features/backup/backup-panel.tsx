@@ -1,4 +1,5 @@
 'use client';
+import { appStorageKey } from '@/lib/app-path';
 import { useState } from 'react';
 import { ArchiveRestore, Download, ShieldCheck } from 'lucide-react';
 import { useApp } from '@/components/provider';
@@ -26,7 +27,7 @@ const labels: Record<string, string> = {
 };
 export function BackupPanel() {
   const app = useApp();
-  const database=db;
+  const database = db;
   const platform = usePlatform();
   const [busy, setBusy] = useState(false),
     [preview, setPreview] = useState<Awaited<ReturnType<typeof backupPreview>> | null>(null),
@@ -98,7 +99,7 @@ export function BackupPanel() {
                   if (file.size > limit * 1024 * 1024) throw new Error(`备份文件超过${limit} MB`);
                   if (platform.enabled && !navigator.onLine)
                     throw new Error('账户恢复需要联网完成服务器预览；离线时仍可下载本机完整备份');
-                  const local = await backupPreview(JSON.parse(await file.text()),database);
+                  const local = await backupPreview(JSON.parse(await file.text()), database);
                   if (platform.enabled)
                     setRemotePreview(
                       await platform.request('/data/restore/preview', 'POST', {
@@ -172,7 +173,7 @@ export function BackupPanel() {
                     if (platform.enabled) {
                       await accountOperation(platform.user!.id, async () => {
                         if (!remotePreview) throw new Error('服务器恢复预览已失效，请重新选择备份');
-                        const latest = await backupPreview(preview.backup,database);
+                        const latest = await backupPreview(preview.backup, database);
                         if (latest.currentSignature !== preview.currentSignature)
                           throw new Error('预览后本机数据已变化，请重新预览');
                         if (await database.sessions.filter((s) => s.state !== 'ended').count())
@@ -192,7 +193,7 @@ export function BackupPanel() {
                           );
                         }
                         localStorage.setItem(
-                          `star-sync:${platform.user!.id}`,
+                          appStorageKey(`star-sync:${platform.user!.id}`),
                           JSON.stringify({
                             version: result.version,
                             hash: await dataHash(result.backup),

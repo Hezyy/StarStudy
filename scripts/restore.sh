@@ -1,43 +1,38 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
-need_docker; need_env
-[[ $# == 1 ]] || die '用法：bash scripts/restore.sh /备份目录'
-[[ -d "$1" ]] || die '备份目录不存在'
+need_docker;need_env;lock_operation
+[[ $# == 1 && -d "$1" ]] || die '请从统一管理菜单选择有效备份目录'
 source_dir=$(cd -- "$1" && pwd -P)
-[[ -f "$source_dir/SHA256SUMS" && -f "$source_dir/database.dump" ]] || die '不是完整备份'
-[[ ! -L "$source_dir/SHA256SUMS" && -s "$source_dir/database.dump" ]] || die '备份清单或数据库转储无效'
-# Never follow symlinks or checksum paths out of the chosen backup directory.
-[[ -z "$(find "$source_dir" -type l -print -quit)" ]] || die '备份含符号链接，恢复已拒绝'
-checked_paths=()
-was_checked() { local candidate;for candidate in "${checked_paths[@]}";do [[ "$candidate" != "$1" ]] || return 0;done;return 1; }
-while IFS= read -r checksum_line; do
- checksum_hash=${checksum_line:0:64}
- checksum_separator=${checksum_line:64:2}
- checksum_path=${checksum_line:66}
- [[ "$checksum_hash" =~ ^[[:xdigit:]]{64}$ && ( "$checksum_separator" == '  ' || "$checksum_separator" == ' *' ) && "$checksum_path" == ./* && "$checksum_path" != *'/../'* && "$checksum_path" != *$'\r'* ]] || die '备份校验清单路径无效'
- [[ -f "$source_dir/$checksum_path" ]] && ! was_checked "$checksum_path" || die '备份清单含重复或非普通文件'
- checked_paths+=("$checksum_path")
-done < "$source_dir/SHA256SUMS"
-for mandatory in database.dump .env compose.yaml Caddyfile manifest.json source-revision.txt; do
- was_checked "./$mandatory" || die "备份校验清单缺少必要文件：$mandatory"
-done
-while IFS= read -r -d '' contained_file; do
- relative_file="./${contained_file#"$source_dir/"}"
- [[ "$relative_file" == ./SHA256SUMS ]] || was_checked "$relative_file" || die '备份包含未列入校验清单的文件'
-done < <(find "$source_dir" -type f -print0)
-(cd -- "$source_dir" && sha256sum -c SHA256SUMS) || die '备份完整性校验失败'
-docker compose exec -T database pg_restore --list < "$source_dir/database.dump" >/dev/null
-read -r -p '恢复将替换服务器全部用户数据。请确认备份来源，输入RESTORE：' answer
-[[ "$answer" == RESTORE ]] || die '已取消'
-read -r -p '再次确认覆盖当前数据库？输入YES：' second
-[[ "$second" == YES ]] || die '已取消'
-docker compose stop app caddy || die '无法完整停止写入服务，尚未开始恢复数据库，请先诊断服务状态'
-trap 'printf "恢复未完成，应用保持停止，数据库事务已回滚或保留；请按文档从恢复前备份重试。\n" >&2' ERR
+python3 scripts/deployment-validation.py backup "$source_dir" || die '备份不完整或已损坏，尚未停止服务'
+backup_version=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["appVersion"])' "$source_dir/manifest.json")
+current_version=$(python3 -c 'import json;print(json.load(open("package.json"))["version"])')
+[[ "$backup_version" == "$current_version" ]] || die '备份与当前应用版本不同，禁止直接覆盖；请先在隔离环境核对源码和迁移版本'
+printf '恢复预览：备份应用版本%s，备份目录%s。当前域名、端口、路径与.env保持不变；将恢复数据库、图片及备份内的证书状态。\n' "$backup_version" "$source_dir"
+docker compose exec -T database pg_restore --list < "$source_dir/database.dump" >/dev/null || die '数据库备份无法读取，尚未开始恢复'
+[[ ! -f .starstudy-install ]] || verify_project_ownership
+ask answer '恢复会替换此部署全部用户数据。确认备份来源，输入RESTORE：'
+[[ "$answer" == RESTORE ]] || die '已取消恢复'
+ask second '再次确认覆盖当前数据库？输入YES：'
+[[ "$second" == YES ]] || die '已取消恢复'
+docker compose stop app caddy || die '无法停止写入服务，未开始恢复'
+phase=before-database;final_backup='尚未生成'
+trap 'result=$?;if ((result!=0));then printf "恢复失败。阶段：%s，恢复前备份：%s。SQL仅在数据库恢复阶段采用单事务；若SQL已提交而证书/后续校验失败，数据库不会自动回滚。请经菜单诊断/重试，不会自动删除用户记录。\n" "$phase" "$final_backup" >&2;fi' EXIT
 bash scripts/backup.sh
+final_backup=$(python3 scripts/deployment-validation.py env .starstudy-backup-state DIRECTORY)
+python3 scripts/deployment-validation.py backup "$final_backup" >/dev/null || die '恢复前备份未通过，未开始覆盖数据库'
+phase=database-transaction
 docker compose exec -T database pg_restore -U star_study -d star_study --clean --if-exists --no-owner --no-acl --single-transaction --exit-on-error < "$source_dir/database.dump"
-# The current release stores all images in PostgreSQL. Optional legacy uploads are copied, never deleted.
-if [[ -d "$source_dir/uploads" ]]; then [[ ! -L uploads ]] || die '本机uploads为符号链接，请手动核对';mkdir -p uploads;cp -a -- "$source_dir/uploads/." uploads/;fi
+phase=database-committed
+if [[ -f "$source_dir/caddy-data.tar" ]];then
+ # tar archives have already passed path/type validation. Keep unrelated files rather than recursively deleting a volume.
+ docker compose run -T --rm --no-deps --entrypoint tar caddy -C /data -xf - < "$source_dir/caddy-data.tar"
+ docker compose run -T --rm --no-deps --entrypoint tar caddy -C /config -xf - < "$source_dir/caddy-config.tar"
+else
+ printf '此旧版备份未包含证书，当前Caddy证书与续期卷保持原样。\n'
+fi
+if [[ -d "$source_dir/uploads" ]];then [[ ! -L uploads ]] || die '本机uploads为符号链接，停止自动复制';mkdir -p uploads;cp -a -- "$source_dir/uploads/." uploads/;fi
+phase=services-starting
 docker compose up -d
-health || die '数据库已恢复但应用健康检查未通过，请运行doctor.sh'
-printf '恢复完成。配置不自动覆盖：异机恢复请按部署文档核对域名、密钥和版本。\n'
+if ! health || ! local_https_health;then docker compose stop app caddy || true;die 'SQL已提交，但健康检查/HTTPS失败，写入服务已尝试停止；请通过菜单诊断，最终备份保留';fi
+printf '恢复完成：数据库与健康检查通过。当前域名、端口、随机路径和.env未被覆盖；异机恢复请先核对对应版本与私有配置。\n'

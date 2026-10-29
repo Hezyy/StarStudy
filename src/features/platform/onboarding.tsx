@@ -1,4 +1,5 @@
 'use client';
+import { appUrl } from '@/lib/app-path';
 import { useRef, useState, type ReactNode } from 'react';
 import { usePlatform } from './platform';
 import { useApp } from '@/components/provider';
@@ -126,7 +127,7 @@ function Onboarding() {
 
   return (
     <main className="onboarding-space">
-      <img src="/icons/star.svg" width="48" height="48" alt="星研" />
+      <img src={appUrl('/icons/star.svg')} width="48" height="48" alt="星研" />
       <p className="eyebrow">你的研途，由自己定义</p>
       <h1>先找到适合自己的节奏</h1>
       <p>日期和科目是个人计划，请以目标院校官方招生信息为准。以后随时可以修改。</p>

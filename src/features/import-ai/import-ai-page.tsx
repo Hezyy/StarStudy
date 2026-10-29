@@ -1,4 +1,5 @@
 'use client';
+import { appUrl, appStorageKey } from '@/lib/app-path';
 import { useState } from 'react';
 import { useApp } from '@/components/provider';
 import { usePlatform } from '@/features/platform/platform';
@@ -108,7 +109,7 @@ export function ImportAiPage() {
       if (p.enabled) {
         await accountOperation(p.user!.id, async () => {
           // Flush the exact local snapshot with CAS before asking server for an authoritative preview.
-          const key = `star-sync:${p.user!.id}`,
+          const key = appStorageKey(`star-sync:${p.user!.id}`),
             cursor = JSON.parse(localStorage.getItem(key) ?? 'null') as {
               version: number;
               hash: string;
@@ -164,7 +165,7 @@ export function ImportAiPage() {
             );
           }
           localStorage.setItem(
-            `star-sync:${p.user!.id}`,
+            appStorageKey(`star-sync:${p.user!.id}`),
             JSON.stringify({ version: remote.version, hash: await dataHash(remote.backup) }),
           );
         });
@@ -462,7 +463,7 @@ export function ImportAiPage() {
         <section className="empty-state">
           <h2>计划已准备好，开始今天的一小步</h2>
           <Button asChild>
-            <a href="/plan/">查看学习日历</a>
+            <a href={appUrl('/plan/')}>查看学习日历</a>
           </Button>
           <Button
             variant="ghost"

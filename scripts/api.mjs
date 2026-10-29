@@ -87,7 +87,9 @@ export function createApiHandler(env = process.env, fetcher = fetch) {
     let sameOrigin = true;
     if (origin) {
       try {
-        sameOrigin = new URL(origin).host === req.headers.host;
+        sameOrigin = env.PUBLIC_URL
+          ? new URL(origin).origin === new URL(env.PUBLIC_URL).origin
+          : new URL(origin).host === req.headers.host;
       } catch {
         sameOrigin = false;
       }

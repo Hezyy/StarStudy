@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import type { ComponentProps } from 'react';
+import { appUrl } from '@/lib/app-path';
 
 // The production PWA already precaches every route. Avoid redundant RSC
 // prefetches during navigation, including WebKit's aborted-fetch errors.
@@ -17,7 +18,8 @@ export default function AppLink(props: ComponentProps<typeof Link>) {
           !e.shiftKey &&
           !e.altKey &&
           href.startsWith('/') &&
-          href !== location.pathname
+          !href.startsWith('//') &&
+          appUrl(href.split(/[?#]/)[0]) !== location.pathname
         ) {
           if (
             !window.dispatchEvent(new Event('star-study:before-navigate', { cancelable: true }))

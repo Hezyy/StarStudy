@@ -1,9 +1,31 @@
-{$SITE_ADDRESS} {
+{
+  auto_https disable_redirects
+  http_port 80
+  https_port 443
+  {$ACME_EMAIL_DIRECTIVE}
+}
+
+http://{$CADDY_DOMAIN}:80 {
+  redir https://{$CADDY_DOMAIN}:{$HTTPS_PORT}{uri} 308
+}
+
+https://{$CADDY_DOMAIN}:443 {
+  tls {
+    issuer acme {
+      disable_tlsalpn_challenge
+    }
+  }
   encode zstd gzip
   header {
     X-Content-Type-Options nosniff
     Referrer-Policy strict-origin-when-cross-origin
     X-Frame-Options DENY
   }
-  reverse_proxy app:3000
+  @application path {$APP_BASE_PATH} {$APP_BASE_PATH}/*
+  handle @application {
+    reverse_proxy app:3000
+  }
+  handle {
+    respond "Not Found" 404
+  }
 }

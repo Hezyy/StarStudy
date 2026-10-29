@@ -30,13 +30,28 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Shell syntax
-        run: for source in scripts/*.sh; do bash -n "$source"; done
+        run: for source in starstudy.sh scripts/*.sh; do bash -n "$source"; done
+      - name: ShellCheck
+        run: |
+          command -v shellcheck >/dev/null || { sudo apt-get update && sudo apt-get install -y shellcheck; }
+          shellcheck --severity=warning --external-sources starstudy.sh scripts/*.sh
+      - name: Unified manager control-flow tests
+        run: bash scripts/test-manager.sh
       - name: Deployment script control-flow smoke tests
         run: bash scripts/test-deployment.sh
-      - name: Docker build
-        run: docker build -t star-study-ci .
       - name: Dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+  deployment:
+    name: Linux / real Docker deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Compose, Caddy, PostgreSQL and isolated TLS lifecycle
+        run: sudo env GITHUB_ACTIONS=true STAR_STUDY_CI_INTEGRATION=1 bash scripts/test-compose-integration.sh
 
   postgres:
     runs-on: ubuntu-latest
@@ -75,7 +90,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [local, platform]
+        suite: [local, platform, prefix]
     env:
       DATABASE_URL: ''
       STAR_STUDY_TEST_DATABASE: ''
@@ -88,7 +103,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run build
+      - name: Build the selected deployment path
+        env:
+          APP_BASE_PATH: ${{ matrix.suite == 'prefix' && '/test-prefix' || '' }}
+          NEXT_PUBLIC_BASE_PATH: ${{ matrix.suite == 'prefix' && '/test-prefix' || '' }}
+        run: npm run build
       - name: Install browser engines and system dependencies
         run: npx playwright install --with-deps chromium webkit
       - name: Local PWA regression
@@ -99,6 +118,9 @@ jobs:
       - name: Isolated account platform regression
         if: matrix.suite == 'platform'
         run: npm run test:e2e:platform
+      - name: Prefixed account and offline PWA regression
+        if: matrix.suite == 'prefix'
+        run: npx playwright test -c playwright.prefix.config.ts
       - name: Preserve browser reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -107,5 +129,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            .platform-test/prefix-results/
+            .platform-test/platform-results/
           if-no-files-found: warn
           retention-days: 7

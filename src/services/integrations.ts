@@ -1,3 +1,4 @@
+import { appUrl } from '@/lib/app-path';
 import { z } from 'zod';
 const configSchema = z.object({
   ai: z.object({ configured: z.boolean(), model: z.string().nullable() }),
@@ -10,7 +11,7 @@ export const emptyConfig: IntegrationConfig = {
 };
 export async function integrationStatus(): Promise<IntegrationConfig> {
   try {
-    const r = await fetch('/api/integrations', { cache: 'no-store' });
+    const r = await fetch(appUrl('/api/integrations'), { cache: 'no-store' });
     if (r.ok) return configSchema.parse(await r.json());
   } catch {}
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
@@ -19,7 +20,7 @@ export async function integrationStatus(): Promise<IntegrationConfig> {
 }
 export async function requestAi(kind: 'plan' | 'mistake', context: unknown, accessToken: string) {
   if (!accessToken.trim()) throw new Error('请填写服务端AI网关的访问口令，不是OpenAI密钥');
-  const r = await fetch('/api/ai', {
+  const r = await fetch(appUrl('/api/ai'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ kind, context }),

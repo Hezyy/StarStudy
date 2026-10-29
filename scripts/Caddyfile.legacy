@@ -1,0 +1,10 @@
+# Internal compatibility for pre-manager, explicitly loopback-only HTTP installations.
+{$SITE_ADDRESS} {
+  encode zstd gzip
+  header {
+    X-Content-Type-Options nosniff
+    Referrer-Policy strict-origin-when-cross-origin
+    X-Frame-Options DENY
+  }
+  reverse_proxy app:3000
+}

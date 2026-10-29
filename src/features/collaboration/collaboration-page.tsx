@@ -1,4 +1,5 @@
 'use client';
+import { appUrl } from '@/lib/app-path';
 import { useState } from 'react';
 import { format, parseISO, subDays } from 'date-fns';
 import { useApp } from '@/components/provider';
@@ -193,12 +194,12 @@ export function CollaborationPage() {
             载入当前任务模板
           </Button>
           <Button variant="ghost" asChild>
-            <a href="/templates/plan-adjustment.example.json" download>
+            <a href={appUrl('/templates/plan-adjustment.example.json')} download>
               下载格式示例（需替换ID）
             </a>
           </Button>
           <Button variant="ghost" asChild>
-            <a href="/templates/plan-adjustment.schema.json" download>
+            <a href={appUrl('/templates/plan-adjustment.schema.json')} download>
               下载 JSON Schema
             </a>
           </Button>
