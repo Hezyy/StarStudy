@@ -3,14 +3,14 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync } from 'node:fs';
 import path from 'node:path';
 
-// Windows WebKit's ephemeral IndexedDB backend cannot prepare Blob files.
+// Playwright WebKit's ephemeral IndexedDB backend cannot prepare Blob files.
 // Test normal installed-app storage in an isolated persistent profile instead.
 // WinCairo also drops cookies when the profile directory contains Unicode test names.
 // ASCII hashes and mkdtemp preserve real HTTP Cookie behavior and isolate every run.
 // These private profiles stay under the ignored test output directory.
 export const test = base.extend({
   context: async ({ browser, browserName, contextOptions }, use, info) => {
-    const needsPersistentProfile = browserName === 'webkit' && process.platform === 'win32';
+    const needsPersistentProfile = browserName === 'webkit';
     let profile: string | undefined;
     if (needsPersistentProfile) {
       const root = path.join(info.project.outputDir, '.webkit-profiles');
@@ -25,9 +25,33 @@ export const test = base.extend({
             headless: true,
           })
         : await browser.newContext(contextOptions);
-    if (needsPersistentProfile) for (const page of context.pages()) await page.close();
-    await use(context);
-    await context.close();
+    // Keep the initial blank page until context.close(). Closing the final page of
+    // a persistent GTK WebKit context terminates its browser before the page fixture starts.
+    // This page never visits the app and cannot change its data or authentication.
+    const pageErrors: string[] = [];
+    context.on('page', (page) => page.on('pageerror', (error) => pageErrors.push(error.message)));
+    try {
+      await use(context);
+    } finally {
+      if (info.status !== info.expectedStatus) {
+        const feedback = [];
+        for (const page of context.pages()) {
+          if (page.isClosed()) continue;
+          feedback.push({
+            url: page.url(),
+            messages: await page
+              .locator('[role="alert"], [role="status"]')
+              .allTextContents()
+              .catch(() => []),
+          });
+        }
+        await info.attach('ui-feedback', {
+          body: Buffer.from(JSON.stringify({ pageErrors, feedback }, null, 2)),
+          contentType: 'application/json',
+        });
+      }
+      await context.close();
+    }
   },
 });
 export { expect };

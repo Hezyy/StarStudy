@@ -38,7 +38,7 @@ jobs:
       - name: Unified manager control-flow tests
         run: bash scripts/test-manager.sh
       - name: Deployment script control-flow smoke tests
-        run: bash scripts/test-deployment.sh
+        run: sudo bash scripts/test-deployment.sh
       - name: Dependency audit
         run: npm audit --omit=dev --audit-level=high
 

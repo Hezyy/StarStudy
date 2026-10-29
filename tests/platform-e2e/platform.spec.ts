@@ -68,7 +68,7 @@ async function secondDevice(
   info: TestInfo,
   email: string,
 ) {
-  if (browser.browserType().name() !== 'webkit' || process.platform !== 'win32')
+  if (browser.browserType().name() !== 'webkit')
     return browser.newContext({
       storageState: await current.storageState(),
       viewport: { width: 375, height: 812 },
@@ -84,7 +84,8 @@ async function secondDevice(
     headless: true,
   });
   try {
-    for (const initialPage of device.pages()) await initialPage.close();
+    // Preserve the initial blank page: GTK WebKit exits when its final persistent
+    // page closes, including between this real login and the caller's new page.
     const login = await device.newPage();
     await login.goto('/');
     await login.getByLabel('邮箱', { exact: true }).fill(email);
