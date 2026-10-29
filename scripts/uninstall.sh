@@ -12,6 +12,7 @@ fi
 need_marker;verify_project_ownership
 docker compose config --format json | python3 scripts/deployment-validation.py compose-project "$COMPOSE_PROJECT_NAME"
 printf '完全卸载将删除：\n- 项目%s的已核实容器及默认网络\n- %s_postgres_data（全部账户/学习记录/错题图片）\n- %s_caddy_data及%s_caddy_config（证书/ACME状态）\n- %s/.env、运行元数据及明确属于本项目的uploads目录\n源码、无凭据归属标记和最终外部备份会保留；这不是备份的安全擦除。\n' "$COMPOSE_PROJECT_NAME" "$COMPOSE_PROJECT_NAME" "$COMPOSE_PROJECT_NAME" "$COMPOSE_PROJECT_NAME" "$STAR_ROOT"
+answer='';second=''
 ask answer '必须输入 DELETE STARSTUDY DATA 才继续：'
 [[ "$answer" == 'DELETE STARSTUDY DATA' ]] || die '已取消完全卸载'
 ask second '再次确认永久删除以上数据？输入YES：'
@@ -27,6 +28,22 @@ verify_project_ownership
 if ! docker compose down --volumes;then
  printf '完全卸载未完成，可能仍有卷或容器占用。未删除配置，请通过菜单诊断。最终备份：%s\n' "$final_backup" >&2;exit 1
 fi
+# A successful Compose exit alone does not prove every resource was removed.
+# Enumerate with an explicit success check; inspect's nonzero status could mean
+# either "not found" or an unreachable daemon and must never authorize deletion.
+purge_incomplete() {
+ printf '完全卸载未完成：%s。保留.env及文件配置，请通过菜单诊断。最终备份：%s\n' "$1" "$final_backup" >&2
+ exit 1
+}
+docker info >/dev/null 2>&1 || purge_incomplete 'Docker守护进程不可达，无法确认删除结果'
+remaining_containers=$(docker ps -a --filter "label=com.docker.compose.project=$COMPOSE_PROJECT_NAME" --format '{{.ID}}') || purge_incomplete '无法枚举容器'
+[[ -z "$remaining_containers" ]] || purge_incomplete '仍有星研项目容器残留'
+remaining_volumes=$(docker volume ls --format '{{.Name}}') || purge_incomplete '无法枚举数据卷'
+for purpose in postgres_data caddy_data caddy_config;do
+ if grep -Fxq "${COMPOSE_PROJECT_NAME}_${purpose}" <<<"$remaining_volumes";then purge_incomplete "数据卷${COMPOSE_PROJECT_NAME}_${purpose}仍存在";fi
+done
+remaining_networks=$(docker network ls --format '{{.Name}}') || purge_incomplete '无法枚举网络'
+if grep -Fxq "${COMPOSE_PROJECT_NAME}_default" <<<"$remaining_networks";then purge_incomplete '星研默认网络仍存在，可能被其他容器使用';fi
 python3 - "$STAR_ROOT" <<'PY'
 from pathlib import Path
 import shutil,sys

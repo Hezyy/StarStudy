@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
 import { normalizeBasePath } from './scripts/base-path.mjs';
+mkdirSync('.platform-test', { recursive: true });
 const port = Number(process.env.STAR_STUDY_PREFIX_TEST_PORT ?? 3014);
 if (![3014, 3015].includes(port)) throw new Error('前缀验收请使用独立测试端口3014或3015');
 const prefix = normalizeBasePath(process.env.STAR_STUDY_PREFIX_TEST_PATH ?? '/test-prefix');

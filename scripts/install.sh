@@ -35,6 +35,7 @@ else
  python3 scripts/deployment-validation.py domain "$domain" || die '域名格式无效'
  ask email '证书联系邮箱（选填，直接回车跳过）：'
  if [[ -n "$email" ]];then [[ "$email" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}$ ]] || die '邮箱格式无效，可重试时留空';fi
+ requested_port=''
  ask requested_port 'HTTPS端口（选填，回车自动从20000—60000选择）：'
  dns_check "$domain"
  port_free 80 || die '本机80端口已被占用，HTTP-01验证不能开始；不会停止其他服务'

@@ -9,7 +9,7 @@ case "$fixture" in "$MANAGER_REPO"/backups/manager-check.*) ;;*) printf '测试�
 test_cleanup() { case "$fixture" in "$MANAGER_REPO"/backups/manager-check.*) rm -rf -- "$fixture";;esac; }
 trap test_cleanup EXIT
 # Sourcing the script loads functions without running the root/Linux entrypoint.
-# shellcheck source=../starstudy.sh
+# shellcheck source=starstudy.sh
 source "$MANAGER_REPO/starstudy.sh"
 exec 3>"$fixture/terminal-output.log"
 assert() { "$@" || { printf '管理脚本断言失败：%s\n' "$*" >&2;exit 1; }; }

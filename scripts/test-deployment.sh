@@ -34,11 +34,14 @@ cat > "$fixture/mockbin/docker" <<'MOCK'
 set -eu
 printf '%s\n' "$*" >> "$STAR_MOCK_CALLS"
 case "$*" in
- 'info'|'compose version'|'compose version --short') printf '2.40.0\n';;
+ 'info') [[ ! -f "$STAR_MOCK_PURGE_STATE" || "${STAR_MOCK_POST_DAEMON_FAIL:-0}" != 1 ]] || exit 1;printf 'mock-daemon\n';;
+ 'compose version'|'compose version --short') printf '2.40.0\n';;
  'version --format '*) printf '28.0.0\n';;
  'ps --format '*) ;;
  'ps -a --filter volume='*) [[ "${STAR_MOCK_FOREIGN_CONSUMER:-0}" != 1 ]] || printf 'deadcafe\n';;
- 'ps -a --filter label='*) [[ "${STAR_MOCK_ENUM_FAIL:-0}" != 1 ]] || exit 1;;
+ 'ps -a --filter label='*) [[ "${STAR_MOCK_ENUM_FAIL:-0}" != 1 ]] || exit 1;[[ ! -f "$STAR_MOCK_PURGE_STATE" || "${STAR_MOCK_POST_CONTAINER:-0}" != 1 ]] || printf 'deadcafe\n';;
+ 'volume ls --format '*) [[ "${STAR_MOCK_POST_ENUM_FAIL:-0}" != 1 ]] || exit 1;[[ "${STAR_MOCK_POST_VOLUME:-0}" != 1 ]] || printf '%s_postgres_data\n' "$COMPOSE_PROJECT_NAME";;
+ 'network ls --format '*) [[ "${STAR_MOCK_POST_NETWORK:-0}" != 1 ]] || printf '%s_default\n' "$COMPOSE_PROJECT_NAME";;
  'volume ls '*) printf '%s\n' "${COMPOSE_PROJECT_NAME}_postgres_data" "${COMPOSE_PROJECT_NAME}_caddy_data" "${COMPOSE_PROJECT_NAME}_caddy_config";;
  'volume inspect --format '*|'network inspect --format '*)
   if [[ "$*" == *io.starstudy.installation* ]];then [[ "${STAR_MOCK_FOREIGN_VOLUME:-0}" == 1 ]] && printf 'foreign\n' || printf '0123456789abcdef0123456789abcdef\n'
@@ -61,7 +64,8 @@ case "$*" in
  *'--entrypoint tar caddy '*'-cf - .'*) cat "$STAR_MOCK_TAR";;
  *'--entrypoint tar caddy '*'-xf -'*) cat >/dev/null;[[ "${STAR_MOCK_FAIL_CERT:-0}" != 1 ]] || exit 45;;
  'compose logs '*) printf 'password=synthetic-test-password-only path=/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n';;
- 'compose up -d'|'compose stop app caddy'|'compose down'|'compose down --volumes'|'compose restart app caddy'|'compose build') ;;
+ 'compose down --volumes') : > "$STAR_MOCK_PURGE_STATE";;
+ 'compose up -d'|'compose stop app caddy'|'compose down'|'compose restart app caddy'|'compose build') ;;
  'compose exec -T app '*|'compose exec -T database pg_isready '*) ;;
  *) printf 'UNEXPECTED MOCK DOCKER: %s\n' "$*" >&2;exit 90;;
 esac
@@ -92,6 +96,7 @@ MOCK
 printf '#!/usr/bin/env bash\nexit 0\n' > "$fixture/mockbin/flock"
 chmod +x "$fixture/mockbin/"*
 export STAR_MOCK_CALLS="$fixture/docker-calls.log" STAR_MOCK_TAR="$fixture/archives/cert.tar"
+export STAR_MOCK_PURGE_STATE="$fixture/purge-state"
 export PATH="$fixture/mockbin:$PATH" PYTHONDONTWRITEBYTECODE=1
 export STAR_BACKUP_DIR="$fixture-external"
 # Deliberately pass a separate FD, never make production ask() consume piped stdin.
@@ -198,6 +203,14 @@ random_port=$(choose_https_port '')
 pass '端口范围/冲突/手动替代'
 reject env STAR_MOCK_FAIL_HTTPS=1 bash scripts/restore.sh "$(find "$STAR_BACKUP_DIR" -mindepth 1 -maxdepth 1 -name 'backup-*' | tail -1)" 3<<<$'RESTORE\nYES'
 pass 'HTTPS证书失败不报告恢复成功'
+for failure in STAR_MOCK_POST_CONTAINER STAR_MOCK_POST_VOLUME STAR_MOCK_POST_NETWORK STAR_MOCK_POST_DAEMON_FAIL STAR_MOCK_POST_ENUM_FAIL;do
+ rm -f -- "$STAR_MOCK_PURGE_STATE"
+ reject env "$failure=1" bash scripts/uninstall.sh --purge 3<<<$'DELETE STARSTUDY DATA\nYES'
+ [[ -f .env && "$env_before" == "$(sha256sum .env)" ]] || die '删除结果不确定时仍删除配置'
+ grep -q '完全卸载未完成.*最终备份：' "$fixture/rejected.log" || die '未如实报告卸载残留/检查失败及备份位置'
+done
+pass '卸载后容器/卷/网络残留及守护进程/枚举失败保留配置'
+rm -f -- "$STAR_MOCK_PURGE_STATE"
 bash scripts/uninstall.sh --purge 3<<<$'DELETE STARSTUDY DATA\nYES' > "$fixture/purge.log"
 grep -q '^compose down --volumes$' "$STAR_MOCK_CALLS" || die '双确认后未删除自有卷'
 [[ ! -e .env && -f .starstudy-install && -d "$STAR_BACKUP_DIR" ]] || die '永久删除范围错误'

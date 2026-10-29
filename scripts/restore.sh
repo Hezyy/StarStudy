@@ -11,6 +11,7 @@ current_version=$(python3 -c 'import json;print(json.load(open("package.json"))[
 printf '恢复预览：备份应用版本%s，备份目录%s。当前域名、端口、路径与.env保持不变；将恢复数据库、图片及备份内的证书状态。\n' "$backup_version" "$source_dir"
 docker compose exec -T database pg_restore --list < "$source_dir/database.dump" >/dev/null || die '数据库备份无法读取，尚未开始恢复'
 [[ ! -f .starstudy-install ]] || verify_project_ownership
+answer='';second=''
 ask answer '恢复会替换此部署全部用户数据。确认备份来源，输入RESTORE：'
 [[ "$answer" == RESTORE ]] || die '已取消恢复'
 ask second '再次确认覆盖当前数据库？输入YES：'

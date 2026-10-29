@@ -18,7 +18,7 @@ ss_read() {
   local target_name=$1 prompt_text=$2
   [[ "$target_name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
   printf '%s' "$prompt_text" >&3
-  IFS= read -r -u 3 "$target_name"
+  IFS= read -r -u 3 "${target_name?}"
 }
 ss_field() {
   local source_file=$1 field_name=$2
