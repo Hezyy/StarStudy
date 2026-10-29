@@ -2,6 +2,8 @@
 
 日期：2026-10-29。范围仅部署运维及必要的路径前缀兼容，不重新设计学习应用，不修改数据库结构。
 
+**验收完成：公开代码1cd573e的六个GitHub CI作业全部成功。** [查看完整运行](https://github.com/Hezyy/StarStudy/actions/runs/40898714398)。本机完整单元120通过，用户原有数据与开发文件保持不变；公网证书与手机实机边界见下文。
+
 ## 功能与文件
 
 - `starstudy.sh`：统一中文菜单、真实终端输入、系统/依赖/Docker准备、固定官方提交下载、安全自更新、安装身份保护、操作锁与失败返回。
@@ -13,12 +15,12 @@
 - 测试：`scripts/test-manager.sh`、`test-deployment.sh`、`test-compose-integration.sh`、`test-compose-api.py`、`tests/unit/base-path.test.ts`、`prefix-api.test.ts`、`tests/prefix-e2e/`及CI矩阵。WebKit持久目录兼容仅限Windows，平台测试输出独立，避免测试互相清理产物。
 - 文档、隐私忽略和源码白名单同步更新；用户原有`next-env.d.ts`字节保持不变，不纳入本次提交。
 
-## 实际验证（接续验收中）
+## 实际验证
 
 | 检查 | 实际结果 | 验证层次 |
 | --- | --- | --- |
 | strict TypeScript / ESLint | 通过 | 本机，lint 0错误0警告 |
-| 完整Vitest | 22文件，119通过、1可选私人原件用例跳过 | 隔离IndexedDB/PGlite；不等于Docker |
+| 完整Vitest | 22文件，120通过、0跳过 | 本机显式配置私人原件；CI为119通过/1私人原件可选跳过，原件不上传 |
 | 私人426天Excel专门用例 | 显式提供私有原件后2通过 | 原件未提交或上传 |
 | 根路径与前缀生产构建 | 两种均通过 | Windows Node构建 |
 | 前缀浏览器 | 4通过、0失败 | Chromium1440px/WebKit375px；登录/退出、资源、端口重定向、PWA离线和重连同步 |
@@ -28,6 +30,10 @@
 | 原有本地和账户浏览器 | 本地102通过/10预定与可选跳过；原件另4通过；账户36通过 | 合计本地106通过和6预定跳过，均0失败；失败批次不计通过 |
 | Linux/Docker CI | 真实生命周期通过 | Compose、Caddy4种配置、PG、私有CA高端口HTTPS与备份恢复/卸载均实际运行 |
 | 独立PostgreSQL17 CI | 通过 | 实际网络数据库，非PGlite |
+| 第三轮CI质量 | 通过 | Linux构建、ShellCheck、真实POSIX PTY/无TTY拒绝、manager和19组ops测试、依赖审计 |
+| 第三轮完整CI | 六个作业全部成功 | quality、deployment、postgres、local、platform、prefix；0失败 |
+| 第三轮Linux浏览器与PG明细 | local 102通过/10预定及原件可选跳过，platform 36通过，prefix 4通过；网络PG15通过 | CI未上传私人Excel；本机另行覆盖其4个浏览器组合 |
+| 最终Windows WebKit | 26通过、2预定跳过 | 最新持久化夹具下完整WebKit重跑，包含原始Excel与图片，不重复累加到前面的本地106项 |
 
 ## 明确限制
 
@@ -44,6 +50,10 @@
 
 首轮实际请求唯一Raw地址得到HTTP200，内容与公开提交一致。敏感格式扫描通过；私有原件、备份、测试库、凭据和用户next-env.d.ts修改均未公开。
 
-GitHub[首轮Linux验收](https://github.com/Hezyy/StarStudy/actions/runs/40894578054)的真实部署及独立PG作业通过。部署日志逐项确认生产Caddy4种配置、内部CA高端口HTTPS、Secure Cookie、学习记录/计时/图片、数据库与Caddy状态备份恢复、普通卸载后保留数据、完全卸载不影响无关容器/卷且保留最终备份。ShellCheck与前缀测试发现的静态提示/缺少临时父目录已修复，第二轮继续验证，不把首轮整套标为通过。
+真实部署日志逐项确认生产Caddy4种配置、内部CA高端口HTTPS、Secure Cookie、学习记录/计时/图片、数据库与Caddy状态备份恢复、普通卸载后保留数据、完全卸载不影响无关容器/卷且保留最终备份。前两轮发现的静态提示、空测试目录、mock所需root身份及WebKit上下文问题均已修复；失败批次不计通过。
+
+[第三轮验收](https://github.com/Hezyy/StarStudy/actions/runs/40898714398)对应公开代码1cd573e，六作业全部完成且成功，没有削弱产品权限或图片断言。后续收尾提交仅记录文档，程序和测试代码与此已验证提交相同。
+
+完整文件差异可在[GitHub对比](https://github.com/Hezyy/StarStudy/compare/1a3e55d763c750653771c7536bd36b0a99e0cd02...1cd573e3f3889021666a8c796f12d5c02f2d0b4f)查看；工作区仅保留用户原有生成文件差异。公开提交正常接续原main，开发祖先和本地数据未上传。
 
 安装及日常管理见[部署说明](DEPLOYMENT.md)，未完成的验证不能视为成功。
